@@ -27,6 +27,13 @@ The LinkedIn app must list `http://localhost:8765/callback` under *Auth → Auth
 Add `{"id": <account id>, "label": "<short name>"}` to `accounts.json` and push.
 `python3 linkedin_ads.py accounts` lists the IDs the login can see.
 
+## First-time GitHub setup (in this order)
+
+1. Create the repo and set the four secrets below (`gh secret set ...`).
+2. Settings → Pages → Source: **GitHub Actions**.
+3. Push to `main` (or *Run workflow*). A push before steps 1–2 fails with
+   "Missing LKDN_CLIENT_ID (.env locally, repository secret in CI)" or at "configure-pages".
+
 ## GitHub secrets
 
 | Secret | Value |

@@ -48,7 +48,7 @@ def load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
     for k in ("LKDN_CLIENT_ID", "LKDN_PRIMARY_CLIENT_SECRET"):
         if not os.environ.get(k):
-            sys.exit(f"Missing {k} in .env")
+            sys.exit(f"Missing {k} (.env locally, repository secret in CI)")
     os.environ.setdefault("LKDN_REDIRECT_URI", "http://localhost:8765/callback")
 
 

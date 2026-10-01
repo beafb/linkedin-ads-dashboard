@@ -8,7 +8,7 @@ export const toDate = (iso) => new Date(`${iso}T00:00:00Z`);
 const toIso = (d) => d.toISOString().slice(0, 10);
 export const addDays = (iso, n) => toIso(new Date(toDate(iso).getTime() + n * DAY_MS));
 const daysInclusive = (start, end) => Math.round((toDate(end) - toDate(start)) / DAY_MS) + 1;
-export const todayIso = () => new Date().toLocaleDateString("en-CA");  // local date, YYYY-MM-DD
+export const todayIso = (now = new Date()) => toIso(now);  // UTC day: LinkedIn reports in UTC
 
 export function rangeFor(preset, today, firstDate) {
   const monthStart = `${today.slice(0, 7)}-01`;

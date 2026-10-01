@@ -26,8 +26,9 @@ class FakeApi:
         self.calls.append((path, query))
         if path == "/adAccounts/1":
             return {"id": 1, "name": "Acme", "currency": "EUR"}
-        if path == "/adAnalytics":
-            return {"elements": [ELEMENT, ORPHAN]}
+        if path == "/adAnalytics":  # rows only in the first chunk, like an older campaign
+            first = sum(1 for p, _ in self.calls if p == "/adAnalytics") == 1
+            return {"elements": [ELEMENT, ORPHAN] if first else []}
         raise AssertionError(path)
 
     def get_all(self, path, query):
@@ -67,6 +68,17 @@ class Dates(unittest.TestCase):
     def test_earliest_start_without_schedules_is_one_year_back(self):
         self.assertEqual(bd.earliest_start([{"id": 1}], date(2026, 10, 1)), date(2025, 10, 1))
 
+    def test_date_chunks_cover_range_without_gaps(self):
+        chunks = bd.date_chunks(date(2026, 1, 1), date(2026, 10, 1), days=90)
+        self.assertEqual(chunks[0][0], date(2026, 1, 1))
+        self.assertEqual(chunks[-1][1], date(2026, 10, 1))
+        for (_, end), (start, _) in zip(chunks, chunks[1:]):
+            self.assertEqual((start - end).days, 1)
+        self.assertTrue(all((e - s).days < 90 for s, e in chunks))
+
+    def test_date_chunks_single_day(self):
+        self.assertEqual(bd.date_chunks(date(2026, 10, 1), date(2026, 10, 1)), [(date(2026, 10, 1), date(2026, 10, 1))])
+
     def test_expiry_warning(self):
         now = 1_000_000
         self.assertIsNone(bd.expiry_warning(now + 31 * 86400, now))
@@ -80,12 +92,15 @@ class Build(unittest.TestCase):
         account, campaigns, daily = bd.build_account({"id": 1, "label": "ACME"}, api, date(2026, 10, 1))
         self.assertEqual(account, {"id": 1, "label": "ACME", "name": "Acme", "currency": "EUR"})
         self.assertEqual(len(daily), 2)
-        query = dict(api.calls)["/adAnalytics"]
-        self.assertIn("pivot=CAMPAIGN", query)
-        self.assertIn("timeGranularity=DAILY", query)
-        self.assertIn("dateRange=(start:(year:2026,month:4,day:6),end:(year:2026,month:10,day:1))", query)
-        self.assertIn("accounts=List(urn%3Ali%3AsponsoredAccount%3A1)", query)
-        self.assertIn("oneClickLeads", query)
+        queries = [q for p, q in api.calls if p == "/adAnalytics"]
+        self.assertEqual(len(queries), 2)  # 2026-04-06..10-01 = 179 days -> two 90-day chunks
+        self.assertIn("dateRange=(start:(year:2026,month:4,day:6),end:(year:2026,month:7,day:4))", queries[0])
+        self.assertIn("dateRange=(start:(year:2026,month:7,day:5),end:(year:2026,month:10,day:1))", queries[1])
+        for query in queries:
+            self.assertIn("pivot=CAMPAIGN", query)
+            self.assertIn("timeGranularity=DAILY", query)
+            self.assertIn("accounts=List(urn%3Ali%3AsponsoredAccount%3A1)", query)
+            self.assertIn("oneClickLeads", query)
 
     def test_orphan_campaign_gets_stub(self):
         _, campaigns, _ = bd.build_account({"id": 1, "label": "ACME"}, FakeApi(), date(2026, 10, 1))

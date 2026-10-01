@@ -50,6 +50,17 @@ def earliest_start(campaigns, today):
     return min(datetime.fromtimestamp(min(starts) / 1000, timezone.utc).date(), today)
 
 
+def date_chunks(since, until, days=90):
+    """Split [since, until] into consecutive windows of at most `days` days.
+    adAnalytics returns at most 15,000 elements per request, without paging or an error."""
+    chunks, start = [], since
+    while start <= until:
+        end = min(start + timedelta(days=days - 1), until)
+        chunks.append((start, end))
+        start = end + timedelta(days=1)
+    return chunks
+
+
 def expiry_warning(expires_at, now):
     days = (expires_at - now) / 86400
     if days >= 30:
@@ -62,12 +73,13 @@ def build_account(cfg, api, today):
     acc = api.get(f"/adAccounts/{aid}", "")
     groups = api.get_all(f"/adAccounts/{aid}/adCampaignGroups", "q=search")
     camps = api.get_all(f"/adAccounts/{aid}/adCampaigns", "q=search")
-    since = earliest_start(camps, today)
-    elements = api.get("/adAnalytics", "&".join([
-        "q=analytics", "pivot=CAMPAIGN", "timeGranularity=DAILY",
-        f"dateRange=(start:{li.date_obj(since)},end:{li.date_obj(today)})",
-        f"accounts=List({li.enc(f'urn:li:sponsoredAccount:{aid}')})",
-        "fields=" + ",".join(FIELDS)])).get("elements", [])
+    elements = []
+    for start, end in date_chunks(earliest_start(camps, today), today):
+        elements += api.get("/adAnalytics", "&".join([
+            "q=analytics", "pivot=CAMPAIGN", "timeGranularity=DAILY",
+            f"dateRange=(start:{li.date_obj(start)},end:{li.date_obj(end)})",
+            f"accounts=List({li.enc(f'urn:li:sponsoredAccount:{aid}')})",
+            "fields=" + ",".join(FIELDS)])).get("elements", [])
 
     group_names = {f"urn:li:sponsoredCampaignGroup:{g['id']}": g.get("name", "") for g in groups}
     campaigns = [campaign_entry(c, aid, group_names) for c in camps]

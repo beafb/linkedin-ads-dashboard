@@ -72,3 +72,8 @@ test("byCampaign groups totals", () => {
 test("todayIso is YYYY-MM-DD", () => {
   assert.match(M.todayIso(), /^\d{4}-\d{2}-\d{2}$/);
 });
+
+test("todayIso uses the UTC day, like LinkedIn reporting", () => {
+  assert.equal(M.todayIso(new Date("2026-10-01T23:30:00Z")), "2026-10-01");
+  assert.equal(M.todayIso(new Date("2026-10-02T00:30:00Z")), "2026-10-02");
+});

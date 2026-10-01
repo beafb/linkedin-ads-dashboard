@@ -39,6 +39,16 @@ class RefreshTokenFromEnv(unittest.TestCase):
         self.assertIn("README", str(cm.exception))
 
 
+class LoadEnv(unittest.TestCase):
+    def test_missing_credentials_mention_ci_secrets(self):
+        with TemporaryDirectory() as tmp, mock.patch.object(li, "ROOT", Path(tmp)), \
+             mock.patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(SystemExit) as cm:
+                li.load_env()
+        self.assertIn("LKDN_CLIENT_ID", str(cm.exception))
+        self.assertIn("repository secret", str(cm.exception))
+
+
 class GetQueryString(unittest.TestCase):
     def test_empty_query_has_no_question_mark(self):
         seen = {}
