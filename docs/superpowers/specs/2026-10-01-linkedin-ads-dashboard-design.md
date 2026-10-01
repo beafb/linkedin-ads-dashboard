@@ -86,12 +86,13 @@ Selections are kept in the URL hash so a view can be shared.
 **1. Lead performance (top)**
 - KPI tiles: Leads · Cost per lead · Spend · Lead-form completion rate (leads ÷ form opens),
   each with delta vs. the previous period of equal length.
-- Daily chart: leads (bars) + cost per lead (line, second axis).
+- Two daily charts side by side: leads per day (bars) and cost per lead (line, gaps on days with no leads).
+  No dual-axis charts (dataviz rule: one measure per y-axis).
 
 **2. Funnel**
 - Impressions → Clicks → Lead-form opens → Leads with step conversion rates.
 - KPI tiles: CTR, CPC, CPM.
-- Daily chart: impressions + clicks.
+- Two daily charts side by side: impressions per day (line) and clicks per day (bars).
 
 **3. Campaign table**
 - Columns: campaign, group, status, daily budget, impressions, clicks, CTR, spend, leads, CPL.
@@ -110,6 +111,8 @@ CPL = spend ÷ leads. Division by zero renders "—".
 - Refresh token rejected → run fails with message pointing to the README re-login section.
 - Fewer than 30 days left on `LKDN_REFRESH_EXPIRES_AT` → `::warning::` annotation on the run.
 - `data.json` fails to load in the browser → page shows an inline error instead of empty charts.
+- GitHub disables cron workflows on public repos after 60 days without commits → every run calls the
+  workflow "enable" API on itself (`actions: write` permission) to keep the schedule alive.
 
 ## Testing
 
