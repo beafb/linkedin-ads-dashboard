@@ -4,19 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LinkedIn Ads Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </head>
-<body>
+<body class="loading">
   <header class="top">
     <div class="title">
       <h1>LinkedIn Ads</h1>
-      <p id="updated" class="muted"></p>
+      <p id="updated" class="muted">Loading the latest numbers…</p>
     </div>
     <div class="filters">
       <div id="accounts" class="seg" role="group" aria-label="Account"></div>
-      <label class="range">Period
+      <label class="field">Period
         <select id="range">
           <option value="7d">Last 7 days</option>
           <option value="30d">Last 30 days</option>
@@ -26,32 +27,66 @@
           <option value="all">All time</option>
         </select>
       </label>
-      <button id="campaign-chip" class="chip" type="button" hidden></button>
+      <label class="field">Campaign <select id="campaign"></select></label>
     </div>
   </header>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview">Overview</button>
+    <button type="button" role="tab" id="tab-ads" data-tab="ads" aria-controls="panel-ads">Ads</button>
+    <button type="button" role="tab" id="tab-sheet" data-tab="sheet" aria-controls="panel-sheet">Daily sheet</button>
+  </nav>
   <main>
     <p id="error" class="error" role="alert" hidden></p>
-    <section>
-      <h2>Lead performance</h2>
-      <div id="lead-kpis" class="kpis"></div>
+
+    <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
+      <p id="story" class="story"><span class="skeleton line"></span><span class="skeleton line short"></span></p>
+      <div id="tiles" class="kpis">
+        <div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div>
+      </div>
+      <div id="highlights" class="highlights"></div>
+      <section id="per1000-section" class="per1000-section" hidden>
+        <h2>Out of 1,000 people who saw your ads…</h2>
+        <ol id="per1000" class="per1000"></ol>
+      </section>
       <div class="charts">
         <figure class="card"><figcaption>Leads per day</figcaption><div class="plot"><canvas id="chart-leads" role="img" aria-label="Leads per day"></canvas></div></figure>
-        <figure class="card"><figcaption>Cost per lead</figcaption><div class="plot"><canvas id="chart-cpl" role="img" aria-label="Cost per lead per day"></canvas></div></figure>
+        <figure class="card"><figcaption>Cost per lead, per day</figcaption><div class="plot"><canvas id="chart-cpl" role="img" aria-label="Cost per lead per day"></canvas></div></figure>
       </div>
     </section>
-    <section>
-      <h2>Funnel</h2>
-      <ol id="funnel" class="funnel"></ol>
-      <div id="funnel-kpis" class="kpis"></div>
-      <div class="charts">
-        <figure class="card"><figcaption>Impressions per day</figcaption><div class="plot"><canvas id="chart-impressions" role="img" aria-label="Impressions per day"></canvas></div></figure>
-        <figure class="card"><figcaption>Clicks per day</figcaption><div class="plot"><canvas id="chart-clicks" role="img" aria-label="Clicks per day"></canvas></div></figure>
+
+    <section id="panel-ads" role="tabpanel" aria-labelledby="tab-ads" hidden>
+      <div class="panel-head">
+        <h2>Your ads</h2>
+        <label class="field">Sort by
+          <select id="ad-sort">
+            <option value="leads">Most leads</option>
+            <option value="cheapest">Cheapest leads</option>
+            <option value="spend">Most spend</option>
+            <option value="newest">Newest</option>
+          </select>
+        </label>
       </div>
+      <div id="ads-grid" class="ads-grid"></div>
+      <p id="ads-empty" class="empty" hidden>No ads ran in this period.</p>
     </section>
-    <section>
-      <h2>Campaigns</h2>
-      <div class="table-wrap"><table id="campaigns"><thead></thead><tbody></tbody></table></div>
-      <p id="no-campaigns" class="muted" hidden>No campaign activity in this period.</p>
+
+    <section id="panel-sheet" role="tabpanel" aria-labelledby="tab-sheet" hidden>
+      <div class="panel-head">
+        <h2>Daily numbers</h2>
+        <div class="sheet-tools">
+          <label class="field">Show
+            <select id="level">
+              <option value="total">All combined</option>
+              <option value="campaign">By campaign</option>
+              <option value="ad">By ad</option>
+            </select>
+          </label>
+          <button id="ad-chip" class="chip" type="button" hidden></button>
+          <button id="csv" class="btn" type="button">Download CSV</button>
+        </div>
+      </div>
+      <div class="sheet-wrap"><table id="sheet"><thead></thead><tbody></tbody></table></div>
+      <p id="sheet-empty" class="empty" hidden>No ads ran in this period.</p>
     </section>
   </main>
 </body>
