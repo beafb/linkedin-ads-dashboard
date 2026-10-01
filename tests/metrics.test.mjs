@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as M from "../site/metrics.js";
 
-const row = (date, campaignId, o = {}) => ({ date, campaignId, impressions: 0, clicks: 0, landingPageClicks: 0,
+const row = (date, adId, o = {}) => ({ date, adId, campaignId: 10, impressions: 0, clicks: 0, landingPageClicks: 0,
   spend: 0, leadFormOpens: 0, leads: 0, engagements: 0, ...o });
 
 test("rangeFor presets", () => {
@@ -22,7 +22,7 @@ test("previousRange has equal length and ends the day before", () => {
   assert.deepEqual(M.previousRange({ start: "2026-03-01", end: "2026-03-31" }), { start: "2026-01-29", end: "2026-02-28" });
 });
 
-test("filterRows by date and campaign", () => {
+test("filterRows by date and ad", () => {
   const rows = [row("2026-09-30", 1), row("2026-10-01", 1), row("2026-10-01", 2), row("2026-10-02", 1)];
   const got = M.filterRows(rows, { start: "2026-09-30", end: "2026-10-01" }, new Set([1]));
   assert.deepEqual(got.map(r => r.date), ["2026-09-30", "2026-10-01"]);
@@ -63,10 +63,16 @@ test("byDate fills missing days with zeros", () => {
   assert.deepEqual(got.map(d => [d.date, d.leads]), [["2026-09-29", 0], ["2026-09-30", 3], ["2026-10-01", 0]]);
 });
 
-test("byCampaign groups totals", () => {
-  const got = M.byCampaign([row("2026-09-30", 1, { spend: 1 }), row("2026-10-01", 1, { spend: 2 }), row("2026-10-01", 2, { spend: 5 })]);
-  assert.equal(got.get(1).spend, 3);
-  assert.equal(got.get(2).spend, 5);
+test("groupTotals groups by any key", () => {
+  const rows = [row("2026-09-30", 1, { spend: 1, campaignId: 10 }), row("2026-10-01", 1, { spend: 2, campaignId: 10 }),
+                row("2026-10-01", 2, { spend: 5, campaignId: 20 })];
+  assert.equal(M.groupTotals(rows, "adId").get(1).spend, 3);
+  assert.equal(M.groupTotals(rows, "campaignId").get(20).spend, 5);
+});
+
+test("daysInclusive", () => {
+  assert.equal(M.daysInclusive("2026-10-01", "2026-10-01"), 1);
+  assert.equal(M.daysInclusive("2026-09-02", "2026-10-01"), 30);
 });
 
 test("todayIso is YYYY-MM-DD", () => {

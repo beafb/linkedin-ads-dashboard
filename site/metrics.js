@@ -7,7 +7,7 @@ const DAY_MS = 86400000;
 export const toDate = (iso) => new Date(`${iso}T00:00:00Z`);
 const toIso = (d) => d.toISOString().slice(0, 10);
 export const addDays = (iso, n) => toIso(new Date(toDate(iso).getTime() + n * DAY_MS));
-const daysInclusive = (start, end) => Math.round((toDate(end) - toDate(start)) / DAY_MS) + 1;
+export const daysInclusive = (start, end) => Math.round((toDate(end) - toDate(start)) / DAY_MS) + 1;
 export const todayIso = (now = new Date()) => toIso(now);  // UTC day: LinkedIn reports in UTC
 
 export function rangeFor(preset, today, firstDate) {
@@ -31,8 +31,8 @@ export function previousRange({ start, end }) {
   return { start: addDays(start, -n), end: addDays(start, -1) };
 }
 
-export function filterRows(daily, { start, end }, campaignIds) {
-  return daily.filter((r) => r.date >= start && r.date <= end && campaignIds.has(r.campaignId));
+export function filterRows(daily, { start, end }, adIds) {
+  return daily.filter((r) => r.date >= start && r.date <= end && adIds.has(r.adId));
 }
 
 export function totals(rows) {
@@ -67,11 +67,11 @@ export function byDate(rows, { start, end }) {
   return [...days].map(([date, rs]) => ({ date, ...totals(rs) }));
 }
 
-export function byCampaign(rows) {
+export function groupTotals(rows, key) {
   const groups = new Map();
   for (const r of rows) {
-    if (!groups.has(r.campaignId)) groups.set(r.campaignId, []);
-    groups.get(r.campaignId).push(r);
+    if (!groups.has(r[key])) groups.set(r[key], []);
+    groups.get(r[key]).push(r);
   }
   return new Map([...groups].map(([id, rs]) => [id, totals(rs)]));
 }
