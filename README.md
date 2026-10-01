@@ -6,8 +6,9 @@ GitHub Actions pulls the LinkedIn Marketing API every 3 hours and publishes `sit
 ## How it works
 
 - `linkedin_ads.py` — LinkedIn API client (OAuth login, token refresh, local CSV pull).
-- `build_data.py` — pulls every account in `accounts.json` → `site/data.json`.
-- `site/` — the static page (`metrics.js` = calculations, `app.js` = rendering, Chart.js from cdnjs).
+- `build_data.py` — pulls every account in `accounts.json` → `site/data.json` (campaigns, ads, daily numbers per ad).
+- `site/` — the static page: `metrics.js`, `insights.js`, `sheet.js` = calculations (unit-tested);
+  `app.js` (state, header, tabs), `overview.js`, `ads.js`, `sheet-view.js`, `ui.js` = rendering. Chart.js from cdnjs.
 - `.github/workflows/refresh.yml` — tests, pulls data, deploys. Runs every 3 h, on push, or via *Actions → Refresh dashboard → Run workflow*.
 
 ## Local development
