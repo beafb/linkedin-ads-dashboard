@@ -39,6 +39,8 @@ jobs:
           LKDN_PRIMARY_CLIENT_SECRET: ${{ secrets.LKDN_PRIMARY_CLIENT_SECRET }}
           LKDN_REFRESH_TOKEN: ${{ secrets.LKDN_REFRESH_TOKEN }}
           LKDN_REFRESH_EXPIRES_AT: ${{ secrets.LKDN_REFRESH_EXPIRES_AT }}
+      - name: Version asset URLs (no stale cache mixes right after a deploy)
+        run: python stamp_assets.py site "${GITHUB_SHA::8}"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
