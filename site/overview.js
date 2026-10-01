@@ -1,7 +1,7 @@
 // Overview tab: story, headline tiles, highlights, per-1,000 funnel, daily charts.
 import * as M from "./metrics.js";
 import * as I from "./insights.js";
-import { el, info, countUp, drawChart, GLOSSARY } from "./ui.js";
+import { el, info, countUp, drawChart, drawStacked, GLOSSARY } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -12,16 +12,19 @@ const TILES = [
   { key: "impressions", label: "Seen by", good: "up" },
 ];
 
-function setDelta(node, d, good, phrase) {
+const ACCOUNT_COLORS = ["--series-1", "--series-2"];  // fixed per account (order in data.accounts)
+
+function setDelta(node, d, good, hasCmp) {
   node.className = "kpi-delta";
-  if (d == null) { node.textContent = "No earlier data to compare"; return; }
+  if (!hasCmp) { node.textContent = "Today so far, nothing to compare yet"; return; }
+  if (d == null) { node.textContent = "No comparison available"; return; }
   const p = Math.round(d * 100);
-  if (p === 0) { node.textContent = `= Same as ${phrase}`; return; }
-  node.textContent = `${p > 0 ? "▲" : "▼"} ${Math.abs(p)}% vs ${phrase}`;
+  if (p === 0) { node.textContent = "= Same as the period before"; return; }
+  node.textContent = `${p > 0 ? "▲" : "▼"} ${Math.abs(p)}% vs the period before`;
   if (good) node.classList.add((p > 0) === (good === "up") ? "good" : "bad");
 }
 
-function renderTiles(cur, prev, days, f) {
+function renderTiles(cur, cmp, f) {
   const box = $("tiles");
   if (box.dataset.ready !== "1") {
     box.replaceChildren(...TILES.map((t) => {
@@ -34,16 +37,14 @@ function renderTiles(cur, prev, days, f) {
     }));
     box.dataset.ready = "1";
   }
-  const r = M.ratios(cur), pr = M.ratios(prev);
-  const values = {
-    leads: [cur.leads, prev.leads, f.num], cpl: [r.cpl, pr.cpl, f.money],
-    spend: [cur.spend, prev.spend, f.money], impressions: [cur.impressions, prev.impressions, f.num],
-  };
+  // values include today; the comparison uses complete days only (cmp)
+  const pick = (t, key) => (key === "cpl" ? M.ratios(t).cpl : t[key]);
+  const fmts = { leads: f.num, cpl: f.money, spend: f.money, impressions: f.num };
   for (const t of TILES) {
     const tile = box.querySelector(`[data-key="${t.key}"]`);
-    const [v, p, fmt] = values[t.key];
-    countUp(tile.querySelector(".kpi-value"), v, fmt);
-    setDelta(tile.querySelector(".kpi-delta"), M.delta(v, p), t.good, I.previousPhrase(days));
+    countUp(tile.querySelector(".kpi-value"), pick(cur, t.key), fmts[t.key]);
+    const d = cmp ? M.delta(pick(cmp.cur, t.key), pick(cmp.prev, t.key)) : null;
+    setDelta(tile.querySelector(".kpi-delta"), d, t.good, Boolean(cmp));
   }
 }
 
@@ -53,14 +54,14 @@ const highlight = (title, main, sub) => {
   return c;
 };
 
-function renderHighlights(rows, range, cur, prev, f, adsById) {
+function renderHighlights(rows, range, cmp, f, adsById) {
   const best = I.byLeads(I.adList(rows)).find((a) => a.leads > 0);
   const day = I.bestDay(M.byDate(rows, range));
   const cards = [];
   if (best) cards.push(highlight("🥇 Best ad", adsById.get(best.id)?.name || `Ad ${best.id}`,
-    `${f.num(best.leads)} leads · ${f.money(best.cpl)} per lead`));
-  if (day) cards.push(highlight("📅 Best day", f.longDay(day.date), `${f.num(day.leads)} leads`));
-  cards.push(highlight("📈 Trend", I.trend(cur, prev), "Compared with the period just before"));
+    `${I.count(best.leads, "lead", f.num)} · ${f.money(best.cpl)} per lead`));
+  if (day) cards.push(highlight("📅 Best day", f.longDay(day.date), I.count(day.leads, "lead", f.num)));
+  cards.push(highlight("📈 Trend", I.trend(cmp), "Complete days, compared with the period just before"));
   $("highlights").replaceChildren(...cards);
 }
 
@@ -77,14 +78,19 @@ function renderPer1000(cur, f) {
   }));
 }
 
-export function renderOverview({ rows, prevRows, range, days, state, f, adsById }) {
-  const cur = M.totals(rows), prev = M.totals(prevRows);
-  $("story").textContent = I.story(state.range, cur, prev, days, f);
-  renderTiles(cur, prev, days, f);
-  renderHighlights(rows, range, cur, prev, f, adsById);
+export function renderOverview({ rows, cmp, range, state, f, adsById, data, accounts }) {
+  const cur = M.totals(rows);
+  $("story").textContent = I.story(state.range, cur, cmp, f);
+  renderTiles(cur, cmp, f);
+  renderHighlights(rows, range, cmp, f, adsById);
   renderPer1000(cur, f);
   const series = M.byDate(rows, range);
   const labels = series.map((d) => f.day(d.date));
   drawChart("chart-leads", "bar", labels, series.map((d) => d.leads), f.num, f.compact);
   drawChart("chart-cpl", "line", labels, series.map((d) => (d.leads ? d.spend / d.leads : null)), f.money, f.compact);
+  const split = M.byDateSplit(rows, range, (r) => adsById.get(r.adId)?.accountId, accounts.map((a) => a.id), "spend");
+  drawStacked("chart-spend", labels, accounts.map((a) => ({
+    label: a.label, values: split.series.get(a.id),
+    colorVar: ACCOUNT_COLORS[data.accounts.findIndex((x) => x.id === a.id) % ACCOUNT_COLORS.length],
+  })), f.money, f.compact);
 }

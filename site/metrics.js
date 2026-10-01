@@ -31,6 +31,14 @@ export function previousRange({ start, end }) {
   return { start: addDays(start, -n), end: addDays(start, -1) };
 }
 
+// Comparisons use complete days only: today's partial day would make every period look worse.
+export function compareRanges(range, today) {
+  const end = range.end >= today ? addDays(today, -1) : range.end;
+  if (end < range.start) return null;
+  const current = { start: range.start, end };
+  return { current, previous: previousRange(current) };
+}
+
 export function filterRows(daily, { start, end }, adIds) {
   return daily.filter((r) => r.date >= start && r.date <= end && adIds.has(r.adId));
 }
@@ -74,4 +82,18 @@ export function groupTotals(rows, key) {
     groups.get(r[key]).push(r);
   }
   return new Map([...groups].map(([id, rs]) => [id, totals(rs)]));
+}
+
+// One daily series per key (e.g. per account) for stacked charts; days with nothing are 0.
+export function byDateSplit(rows, { start, end }, keyOf, keys, field) {
+  const days = [];
+  const index = new Map();
+  for (let d = start; d <= end; d = addDays(d, 1)) { index.set(d, days.length); days.push(d); }
+  const series = new Map(keys.map((k) => [k, days.map(() => 0)]));
+  for (const r of rows) {
+    const i = index.get(r.date), s = series.get(keyOf(r));
+    if (i != null && s) s[i] += r[field] || 0;
+  }
+  for (const s of series.values()) s.forEach((v, i) => { s[i] = Math.round(v * 100) / 100; });
+  return { days, series };
 }

@@ -70,6 +70,14 @@ test("groupTotals groups by any key", () => {
   assert.equal(M.groupTotals(rows, "campaignId").get(20).spend, 5);
 });
 
+test("compareRanges compares complete days only", () => {
+  assert.deepEqual(M.compareRanges({ start: "2026-09-02", end: "2026-10-01" }, "2026-10-01"),
+    { current: { start: "2026-09-02", end: "2026-09-30" }, previous: { start: "2026-08-04", end: "2026-09-01" } });
+  assert.deepEqual(M.compareRanges({ start: "2026-09-01", end: "2026-09-30" }, "2026-10-01"),
+    { current: { start: "2026-09-01", end: "2026-09-30" }, previous: { start: "2026-08-02", end: "2026-08-31" } });
+  assert.equal(M.compareRanges({ start: "2026-10-01", end: "2026-10-01" }, "2026-10-01"), null);
+});
+
 test("daysInclusive", () => {
   assert.equal(M.daysInclusive("2026-10-01", "2026-10-01"), 1);
   assert.equal(M.daysInclusive("2026-09-02", "2026-10-01"), 30);
@@ -82,4 +90,14 @@ test("todayIso is YYYY-MM-DD", () => {
 test("todayIso uses the UTC day, like LinkedIn reporting", () => {
   assert.equal(M.todayIso(new Date("2026-10-01T23:30:00Z")), "2026-10-01");
   assert.equal(M.todayIso(new Date("2026-10-02T00:30:00Z")), "2026-10-02");
+});
+
+test("byDateSplit: daily values per key, zero-filled, ignores unknown keys", () => {
+  const rows = [row("2026-09-30", 1, { spend: 10.1 }), row("2026-09-30", 2, { spend: 5 }), row("2026-09-30", 1, { spend: 0.2 }),
+                row("2026-10-01", 2, { spend: 3 }), row("2026-10-01", 9, { spend: 99 })];
+  const accountOf = new Map([[1, "A"], [2, "B"]]);
+  const got = M.byDateSplit(rows, { start: "2026-09-29", end: "2026-10-01" }, (r) => accountOf.get(r.adId), ["A", "B"], "spend");
+  assert.deepEqual(got.days, ["2026-09-29", "2026-09-30", "2026-10-01"]);
+  assert.deepEqual(got.series.get("A"), [0, 10.3, 0]);
+  assert.deepEqual(got.series.get("B"), [0, 5, 3]);
 });

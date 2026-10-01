@@ -64,7 +64,9 @@ export function renderSheet({ rows, range, state, f, adsById, campaignsById }, {
 
   $("csv").onclick = () => {
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob(["﻿", S.sheetCsv(result, level)], { type: "text/csv;charset=utf-8" }));
+    // French-locale Excel splits on ";" and reads "," as the decimal mark
+    const opts = /^fr\b/i.test(navigator.language) ? { sep: ";", decimal: "," } : {};
+    a.href = URL.createObjectURL(new Blob(["\ufeff", S.sheetCsv(result, level, opts)], { type: "text/csv;charset=utf-8" }));
     a.download = `linkedin-ads-${state.account}-${range.start}-${range.end}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);

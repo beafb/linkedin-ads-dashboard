@@ -6,25 +6,25 @@ export const PERIOD_PHRASE = {
   lastmonth: "Last month", ytd: "This year", all: "Since the start",
 };
 
-export const previousPhrase = (days) => (days === 1 ? "the day before" : `the previous ${days} days`);
-
 const pctRound = (d) => Math.round(d * 100);
 
-export function story(preset, cur, prev, days, f) {
+export const count = (n, word, fmt) => `${fmt(n)} ${n === 1 ? word : `${word}s`}`;
+
+// `cmp` = {cur, prev} totals over complete days (see metrics.compareRanges), or null.
+export function story(preset, cur, cmp, f) {
   if (!cur.impressions) return "No ads ran in this period.";
   const people = cur.clicks === 1 ? "person" : "people";
   const leads = cur.leads === 1 ? "1 became a lead" : `${f.num(cur.leads)} became leads`;
-  let s = `${PERIOD_PHRASE[preset]}, your ads were seen ${f.num(cur.impressions)} times, ` +
+  let s = `${PERIOD_PHRASE[preset]}, your ads were seen ${count(cur.impressions, "time", f.num)}, ` +
     `${f.num(cur.clicks)} ${people} clicked and ${leads}`;
   const cpl = ratios(cur).cpl;
   if (cpl == null) return `${s}.`;
   s += `, at ${f.money(cpl)} each`;
-  const d = delta(cpl, ratios(prev).cpl);
+  const d = cmp ? delta(ratios(cmp.cur).cpl, ratios(cmp.prev).cpl) : null;
   if (d == null) return `${s}.`;
   const p = pctRound(d);
-  const cmp = p === 0 ? `the same as ${previousPhrase(days)}`
-    : `${Math.abs(p)}% ${p > 0 ? "more" : "less"} than ${previousPhrase(days)}`;
-  return `${s} (${cmp}).`;
+  const vs = p === 0 ? "the same as the period before" : `${Math.abs(p)}% ${p > 0 ? "more" : "less"} than the period before`;
+  return `${s} (${vs}).`;
 }
 
 export const VERDICTS = {
@@ -40,8 +40,9 @@ export function verdict(t, avgCpl) {
   if (!t.leads) return "noLeads";
   if (avgCpl == null) return "solid";
   const cpl = t.spend / t.leads;
-  if (cpl <= 0.8 * avgCpl) return "star";
-  if (cpl >= 1.5 * avgCpl) return "costly";
+  const EPS = 1e-9;  // exact boundaries must not fall through on floating-point noise
+  if (cpl <= 0.8 * avgCpl * (1 + EPS)) return "star";
+  if (cpl >= 1.5 * avgCpl * (1 - EPS)) return "costly";
   return "solid";
 }
 
@@ -75,9 +76,11 @@ const change = (d, noun) => {
   return p === 0 ? `${noun} stayed the same` : `${noun} ${p > 0 ? "rose" : "fell"} ${Math.abs(p)}%`;
 };
 
-export function trend(cur, prev) {
+export function trend(cmp) {
+  if (!cmp || !cmp.prev.impressions) return "Not enough history to compare yet.";
+  const { cur, prev } = cmp;
+  if (!prev.leads) return cur.leads ? `Leads went from 0 to ${cur.leads}.` : "No leads in either period.";
   const dl = delta(cur.leads, prev.leads);
-  if (dl == null) return "Not enough history to compare yet.";
   const dc = delta(ratios(cur).cpl, ratios(prev).cpl);
   return `${change(dl, "Leads")}${dc == null ? "" : `, ${change(dc, "cost per lead")}`}.`;
 }

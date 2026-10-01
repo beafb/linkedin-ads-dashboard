@@ -28,22 +28,25 @@ export function shadeStep(v, max) {
   return Math.max(1, Math.min(5, Math.ceil((v / max) * 5)));
 }
 
-const cell = (v) => {
+const cell = (v, sep) => {
   if (v == null) return "";
   const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return s.includes(sep) || /["\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export const toCsv = (header, lines) => [header, ...lines].map((l) => l.map(cell).join(",")).join("\n") + "\n";
+export const toCsv = (header, lines, sep = ",") =>
+  [header, ...lines].map((l) => l.map((v) => cell(v, sep)).join(sep)).join("\n") + "\n";
 
 const LABEL = { campaign: "Campaign", ad: "Ad" };
 
-export function sheetCsv({ rows, total }, level) {
+// French-locale Excel expects ";" between columns and "," for decimals: pass { sep: ";", decimal: "," }.
+export function sheetCsv({ rows, total }, level, { sep = ",", decimal = "." } = {}) {
+  const n = (v) => (v == null || decimal === "." ? v : String(v).replace(".", decimal));
   const grouped = level !== "total";
   const head = ["Date", ...(grouped ? [LABEL[level]] : []), "Seen by", "Clicks", "Click rate", "Form opens",
     "Leads", "Spend", "Cost per lead"];
   const line = (r, date) => [date, ...(grouped ? [r.label] : []), r.impressions, r.clicks,
-    r.ctr == null ? null : +r.ctr.toFixed(4), r.leadFormOpens, r.leads, r.spend,
-    r.cpl == null ? null : +r.cpl.toFixed(2)];
-  return toCsv(head, [line({ ...total, label: "" }, "Total"), ...rows.map((r) => line(r, r.date))]);
+    n(r.ctr == null ? null : +r.ctr.toFixed(4)), r.leadFormOpens, r.leads, n(r.spend),
+    n(r.cpl == null ? null : +r.cpl.toFixed(2))];
+  return toCsv(head, [line({ ...total, label: "" }, "Total"), ...rows.map((r) => line(r, r.date))], sep);
 }

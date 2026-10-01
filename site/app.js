@@ -71,6 +71,14 @@ function renderHeader() {
   }
 }
 
+// Totals over complete days only, for "vs the period before" (today is still filling up).
+function comparison(range, today, adIds) {
+  const r = M.compareRanges(range, today);
+  if (!r) return null;
+  return { cur: M.totals(M.filterRows(data.daily, r.current, adIds)),
+           prev: M.totals(M.filterRows(data.daily, r.previous, adIds)) };
+}
+
 function render() {
   const ads = selectedAds();
   renderHeader();
@@ -81,7 +89,8 @@ function render() {
   const ctx = {
     data, state, range, days: M.daysInclusive(range.start, range.end),
     rows: M.filterRows(data.daily, range, adIds),
-    prevRows: M.filterRows(data.daily, M.previousRange(range), adIds),
+    cmp: comparison(range, today, adIds),
+    accounts: selectedAccounts(),
     f: formatters(selectedAccounts()[0]?.currency || "EUR"),
     adsById, campaignsById,
   };

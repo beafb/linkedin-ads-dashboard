@@ -109,6 +109,44 @@ export function drawChart(id, type, labels, values, fmt, tick) {
   });
 }
 
+// Stacked bars, one dataset per entity; colours are fixed per entity by the caller.
+export function drawStacked(id, labels, datasets, fmt, tick) {
+  charts[id]?.destroy();
+  const muted = cssVar("--text-muted"), grid = cssVar("--grid"), surface = cssVar("--surface-2");
+  const secondary = cssVar("--text-secondary");
+  charts[id] = new Chart(document.getElementById(id), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: datasets.map((d, i) => ({
+        label: d.label, data: d.values, backgroundColor: cssVar(d.colorVar),
+        borderColor: surface, borderWidth: { top: i ? 2 : 0 }, borderSkipped: false,  // 2px gap between segments
+        borderRadius: i === datasets.length - 1 ? { topLeft: 4, topRight: 4 } : 0,
+        maxBarThickness: 22, categoryPercentage: 0.9, barPercentage: 0.9,
+      })),
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: true, position: "top", align: "start",
+                  labels: { color: secondary, boxWidth: 12, boxHeight: 12, useBorderRadius: true, borderRadius: 3 } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`,
+            footer: (items) => `Total: ${fmt(items.reduce((s, it) => s + it.parsed.y, 0))}`,
+          },
+        },
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0 } },
+        y: { stacked: true, beginAtZero: true, grid: { color: grid }, border: { display: false },
+             ticks: { color: muted, maxTicksLimit: 5, callback: (v) => tick(v) } },
+      },
+    },
+  });
+}
+
 export function sparkline(values) {
   const ns = "http://www.w3.org/2000/svg", w = 120, h = 32;
   const max = Math.max(1, ...values);

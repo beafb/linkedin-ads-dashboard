@@ -51,6 +51,7 @@
       <div class="charts">
         <figure class="card"><figcaption>Leads per day</figcaption><div class="plot"><canvas id="chart-leads" role="img" aria-label="Leads per day"></canvas></div></figure>
         <figure class="card"><figcaption>Cost per lead, per day</figcaption><div class="plot"><canvas id="chart-cpl" role="img" aria-label="Cost per lead per day"></canvas></div></figure>
+        <figure class="card wide"><figcaption>Spend per day, by account</figcaption><div class="plot"><canvas id="chart-spend" role="img" aria-label="Spend per day, stacked by account"></canvas></div></figure>
       </div>
     </section>
 
@@ -85,8 +86,8 @@
           <button id="csv" class="btn" type="button">Download CSV</button>
         </div>
       </div>
-      <div class="sheet-wrap"><table id="sheet"><thead></thead><tbody></tbody></table></div>
       <p id="sheet-empty" class="empty" hidden>No ads ran in this period.</p>
+      <div class="sheet-wrap"><table id="sheet"><thead></thead><tbody></tbody></table></div>
     </section>
   </main>
 </body>
