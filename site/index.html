@@ -33,6 +33,7 @@
   <nav class="tabs" role="tablist" aria-label="Views">
     <button type="button" role="tab" id="tab-overview" data-tab="overview" aria-controls="panel-overview">Overview</button>
     <button type="button" role="tab" id="tab-ads" data-tab="ads" aria-controls="panel-ads">Ads</button>
+    <button type="button" role="tab" id="tab-leads" data-tab="leads" aria-controls="panel-leads">Leads</button>
     <button type="button" role="tab" id="tab-sheet" data-tab="sheet" aria-controls="panel-sheet">Daily sheet</button>
   </nav>
   <main>
@@ -40,6 +41,11 @@
 
     <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
       <p id="story" class="story"><span class="skeleton line"></span><span class="skeleton line short"></span></p>
+      <p id="deal-story" class="story-sub" hidden></p>
+      <div id="lead-block" class="lead-block" hidden>
+        <ol id="lead-funnel" class="lead-funnel"></ol>
+        <div id="lead-warning" class="warning" hidden></div>
+      </div>
       <div id="tiles" class="kpis">
         <div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div>
       </div>
@@ -71,6 +77,25 @@
       <p id="ads-empty" class="empty" hidden>No ads ran in this period.</p>
     </section>
 
+    <section id="panel-leads" role="tabpanel" aria-labelledby="tab-leads" hidden>
+      <div class="panel-head"><h2>What happened to your leads</h2></div>
+      <ol id="leads-funnel" class="lead-funnel"></ol>
+      <p id="leads-empty" class="empty" hidden>No leads in this period.</p>
+      <div class="charts">
+        <figure class="card wide"><figcaption>Leads per week, by status today</figcaption><div class="plot"><canvas id="chart-leadstatus" role="img" aria-label="Leads per week, stacked by status"></canvas></div></figure>
+      </div>
+      <div class="panel-head table-head">
+        <h2>By campaign or ad</h2>
+        <label class="field">Show
+          <select id="lead-level">
+            <option value="campaign">By campaign</option>
+            <option value="ad">By ad</option>
+          </select>
+        </label>
+      </div>
+      <div class="sheet-wrap"><table id="lead-table" class="datatable"><thead></thead><tbody></tbody></table></div>
+    </section>
+
     <section id="panel-sheet" role="tabpanel" aria-labelledby="tab-sheet" hidden>
       <div class="panel-head">
         <h2>Daily numbers</h2>
@@ -87,7 +112,7 @@
         </div>
       </div>
       <p id="sheet-empty" class="empty" hidden>No ads ran in this period.</p>
-      <div class="sheet-wrap"><table id="sheet"><thead></thead><tbody></tbody></table></div>
+      <div class="sheet-wrap"><table id="sheet" class="datatable"><thead></thead><tbody></tbody></table></div>
     </section>
   </main>
 </body>

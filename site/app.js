@@ -4,11 +4,13 @@ import { el, formatters } from "./ui.js";
 import { renderOverview } from "./overview.js";
 import { renderAds } from "./ads.js";
 import { renderSheet } from "./sheet-view.js";
+import * as L from "./leads.js";
+import { renderLeads } from "./leads-view.js";
 
-const TABS = ["overview", "ads", "sheet"];
+const TABS = ["overview", "ads", "leads", "sheet"];
 const RANGES = ["7d", "30d", "month", "lastmonth", "ytd", "all"];
 const LEVELS = ["total", "campaign", "ad"];
-const state = { tab: "overview", account: "all", range: "30d", campaign: null, ad: null, level: "total", sort: "leads" };
+const state = { tab: "overview", account: "all", range: "30d", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
 let data, adsById, campaignsById, activeCampaignIds;
 const $ = (id) => document.getElementById(id);
 const numOrNull = (v) => (v ? Number(v) : null);
@@ -91,10 +93,14 @@ function render() {
     rows: M.filterRows(data.daily, range, adIds),
     cmp: comparison(range, today, adIds),
     accounts: selectedAccounts(),
+    leadRows: L.filterLeadRows(data.leadStatus || [], range, new Set(selectedAccounts().map((a) => a.id)), state.campaign),
     f: formatters(selectedAccounts()[0]?.currency || "EUR"),
     adsById, campaignsById,
   };
-  if (state.tab === "overview") renderOverview(ctx);
+  if (state.tab === "overview") {
+    renderOverview(ctx, { onShowLeads: () => { state.tab = "leads"; render(); window.scrollTo(0, 0); } });
+  }
+  if (state.tab === "leads") renderLeads(ctx, { onLevel: (level) => { state.leadLevel = level; render(); } });
   if (state.tab === "ads") {
     renderAds(ctx, {
       onSort: (sort) => { state.sort = sort; render(); },

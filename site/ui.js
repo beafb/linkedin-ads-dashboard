@@ -12,6 +12,14 @@ export const GLOSSARY = {
   cpl: "Cost per lead: what you paid on average for each lead (spend ÷ leads).",
   spend: "Spend: what LinkedIn charged for the period.",
   formRate: "Form completion: out of 100 people who opened the form, how many sent it.",
+  formLeads: "Leads (forms): people who sent your LinkedIn form. Can differ slightly from the ad-reported leads, which LinkedIn counts separately.",
+  inBrevo: "In Brevo: leads found in your Brevo contacts (matched by email).",
+  notInBrevo: "Not in Brevo: leads that were never added to Brevo, so nobody can follow them up.",
+  deals: "Deals: leads with an opportunity in your Brevo sales pipeline (Cold, Warm, Hot, Won or Lost).",
+  hot: "Hot: deals marked Hot in your pipeline.",
+  won: "Won: deals marked Won in your pipeline.",
+  costPerDeal: "Cost per deal: ad spend ÷ number of deals.",
+  unsubscribed: "Unsubscribed: leads who unsubscribed from your emails.",
 };
 
 export function el(tag, cls, text) {

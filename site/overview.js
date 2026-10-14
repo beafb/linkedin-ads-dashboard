@@ -1,7 +1,9 @@
 // Overview tab: story, headline tiles, highlights, per-1,000 funnel, daily charts.
 import * as M from "./metrics.js";
 import * as I from "./insights.js";
+import * as L from "./leads.js";
 import { el, info, countUp, drawChart, drawStacked, GLOSSARY } from "./ui.js";
+import { renderLeadFunnel } from "./leads-view.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -78,9 +80,30 @@ function renderPer1000(cur, f) {
   }));
 }
 
-export function renderOverview({ rows, cmp, range, state, f, adsById, data, accounts }) {
+function renderLeadBlock(leadRows, f, onShowLeads) {
+  const t = L.statusTotals(leadRows);
+  const sentence = L.dealSentence(t, f);
+  $("deal-story").hidden = !sentence;
+  $("deal-story").textContent = sentence;
+  $("lead-block").hidden = !t.total;
+  if (!t.total) return;
+  renderLeadFunnel($("lead-funnel"), t, f, false);
+  const missing = t.byStatus["Not in Brevo"];
+  const warn = $("lead-warning");
+  warn.hidden = !missing;
+  if (missing) {
+    const link = el("button", "link", "See which campaigns →");
+    link.type = "button";
+    link.onclick = onShowLeads;
+    warn.replaceChildren(el("span", null, `⚠️ ${I.count(missing, "lead", f.num)} from this period ${missing === 1 ? "is" : "are"} `
+      + `not in Brevo yet, so nobody can follow ${missing === 1 ? "it" : "them"} up.`), link);
+  }
+}
+
+export function renderOverview({ rows, cmp, range, state, f, adsById, data, accounts, leadRows }, { onShowLeads }) {
   const cur = M.totals(rows);
   $("story").textContent = I.story(state.range, cur, cmp, f);
+  renderLeadBlock(leadRows, f, onShowLeads);
   renderTiles(cur, cmp, f);
   renderHighlights(rows, range, cmp, f, adsById);
   renderPer1000(cur, f);
