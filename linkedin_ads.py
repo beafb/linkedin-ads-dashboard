@@ -23,7 +23,7 @@ TOKEN_FILE = ROOT / ".linkedin_tokens.json"
 OUT_DIR = ROOT / "data" / "linkedin"
 API = "https://api.linkedin.com/rest"
 LI_VERSION = "202609"
-SCOPES = "r_ads r_ads_reporting"
+SCOPES = "r_ads r_ads_reporting r_marketing_leadgen_automation"
 TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 _session_token = None  # access token obtained from LKDN_REFRESH_TOKEN for this process
 
