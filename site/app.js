@@ -10,7 +10,7 @@ import { renderLeads } from "./leads-view.js";
 const TABS = ["overview", "ads", "leads", "sheet"];
 const RANGES = ["7d", "30d", "month", "lastmonth", "ytd", "all"];
 const LEVELS = ["total", "campaign", "ad"];
-const state = { tab: "overview", account: "all", range: "30d", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
+const state = { tab: "overview", account: "all", range: "all", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
 let data, adsById, campaignsById, activeCampaignIds;
 const $ = (id) => document.getElementById(id);
 const numOrNull = (v) => (v ? Number(v) : null);
