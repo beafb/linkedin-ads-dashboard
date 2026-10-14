@@ -154,5 +154,38 @@ class Build(unittest.TestCase):
         self.assertEqual([r["adId"] for r in out["daily"]], [999, AD_ID])
 
 
+class LeadStatusWiring(unittest.TestCase):
+    def test_build_lead_status_joins_both_apis(self):
+        lead = {"owner": {"sponsoredAccount": "urn:li:sponsoredAccount:1"}, "testLead": False,
+                "versionedLeadGenFormUrn": "urn:li:versionedLeadGenForm:(urn:li:leadGenForm:55,1)",
+                "submittedAt": 1790000000000,
+                "leadMetadata": {"sponsoredLeadMetadata": {"campaign": "urn:li:sponsoredCampaign:10"}},
+                "associatedEntity": {"associatedCreative": "urn:li:sponsoredCreative:100"},
+                "formResponse": {"answers": [{"questionId": 7, "answerDetails": {"textQuestionAnswer": {"answer": "A@x.com"}}}]}}
+
+        class Li:
+            enc = staticmethod(lambda s: s)
+            @staticmethod
+            def get(path, query):
+                if path == "/leadFormResponses":
+                    return {"elements": [lead]}
+                if path == "/leadForms/55":
+                    return {"content": {"questions": [{"questionId": 7, "predefinedField": "EMAIL"}]}}
+                raise AssertionError(path)
+
+        def brevo_fetch(path):
+            if path.startswith("/contacts"):
+                return {"count": 1, "contacts": [{"id": 9, "email": "a@x.com"}]}
+            if path.startswith("/crm/deals"):
+                return {"items": [{"attributes": {"deal_stage": "w"}, "linkedContactsIds": [9]}]}
+            if path == "/crm/pipeline/details/all":
+                return [{"stages": [{"id": "w", "name": "Warm"}]}]
+            raise AssertionError(path)
+
+        rows = bd.build_lead_status([{"id": 1, "label": "ACME"}], Li, brevo_fetch)
+        self.assertEqual(rows, [{"date": "2026-09-21", "accountId": 1, "campaignId": 10, "adId": 100,
+                                 "status": "Warm", "count": 1, "unsubscribed": 0}])
+
+
 if __name__ == "__main__":
     unittest.main()

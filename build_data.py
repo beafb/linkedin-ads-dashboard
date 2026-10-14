@@ -9,6 +9,8 @@ import json, os, time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+import brevo
+import lead_status as ls
 import linkedin_ads as li
 
 ROOT = Path(__file__).resolve().parent
@@ -134,6 +136,13 @@ def build(accounts_cfg, api, today, now_iso):
     return out
 
 
+def build_lead_status(accounts_cfg, li_api, brevo_fetch):
+    leads = [lead for cfg in accounts_cfg for lead in ls.fetch_leads(li_api.get, li_api.enc, cfg["id"])]
+    email_qids = ls.email_question_ids(li_api.get, {ls.form_id(lead) for lead in leads} - {None})
+    return ls.aggregate(leads, email_qids, brevo.contacts(brevo_fetch), brevo.deals(brevo_fetch),
+                        brevo.stages(brevo_fetch))
+
+
 def main():
     li.load_env()
     expires_at = os.environ.get("LKDN_REFRESH_EXPIRES_AT")
@@ -141,6 +150,8 @@ def main():
         print(f"::warning::{msg}")
     cfg = json.loads((ROOT / "accounts.json").read_text())
     data = build(cfg, li, date.today(), datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    key = brevo.load_key()
+    data["leadStatus"] = build_lead_status(cfg, li, lambda path: brevo.get(path, key))
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(data, separators=(",", ":")))
     for a in data["accounts"]:
@@ -148,6 +159,10 @@ def main():
         n_a = sum(1 for x in data["ads"] if x["accountId"] == a["id"])
         print(f"{a['label']}: {a['name']} ({a['currency']}), {n_c} campaigns, {n_a} ads")
     print(f"{len(data['daily'])} daily rows -> {OUT.relative_to(ROOT)}")
+    by_status = {}
+    for r in data["leadStatus"]:
+        by_status[r["status"]] = by_status.get(r["status"], 0) + r["count"]
+    print(f"{sum(by_status.values())} leads from forms: " + ", ".join(f"{k} {v}" for k, v in by_status.items()))
 
 
 if __name__ == "__main__":
