@@ -7,6 +7,8 @@ GitHub Actions pulls the LinkedIn Marketing API every 3 hours and publishes `sit
 
 - `linkedin_ads.py` — LinkedIn API client (OAuth login, token refresh, local CSV pull).
 - `build_data.py` — pulls every account in `accounts.json` → `site/data.json` (campaigns, ads, daily numbers per ad).
+- `brevo.py` — Brevo CRM client (contacts, deals, stages).
+- `lead_status.py` — LinkedIn Lead Sync leads joined with their Brevo status; only counts are published.
 - `site/` — the static page: `metrics.js`, `insights.js`, `sheet.js` = calculations (unit-tested);
   `app.js` (state, header, tabs), `overview.js`, `ads.js`, `sheet-view.js`, `ui.js` = rendering. Chart.js from cdnjs.
 - `.github/workflows/refresh.yml` — tests, pulls data, deploys. Runs every 3 h, on push, or via *Actions → Refresh dashboard → Run workflow*.
@@ -42,10 +44,12 @@ Add `{"id": <account id>, "label": "<short name>"}` to `accounts.json` and push.
 | `LKDN_CLIENT_ID` | app client ID |
 | `LKDN_PRIMARY_CLIENT_SECRET` | app client secret |
 | `LKDN_REFRESH_TOKEN` | `refresh_token` from `.linkedin_tokens.json` |
+| `BREVO_API_KEY` | Brevo API key (IP blocking must stay disabled for GitHub runners) |
 | `LKDN_REFRESH_EXPIRES_AT` | `refresh_expires_at` from `.linkedin_tokens.json` (unix time) |
 
 ## Yearly re-login
 
+The login includes `r_ads`, `r_ads_reporting` and `r_marketing_leadgen_automation` (Lead Sync).
 LinkedIn refresh tokens last 365 days from the login and are not extended by use.
 About 30 days before expiry the workflow shows a warning; after expiry runs fail with
 "refresh token rejected or expired". To renew:
