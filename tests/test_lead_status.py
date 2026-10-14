@@ -6,8 +6,9 @@ STAGES = {"s1": "Cold", "s2": "Warm", "s3": "Hot", "s4": "Won", "s5": "Lost"}
 TS = 1790000000000  # 2026-09-21T14:13:20Z
 
 
-def lead(email, ts=TS, account=1, campaign=10, ad=100, test=False, qid=7, form=55):
+def lead(email, ts=TS, account=1, campaign=10, ad=100, test=False, qid=7, form=55, lead_id=None):
     return {
+        "id": lead_id or f"lead-{email}",
         "owner": {"sponsoredAccount": f"urn:li:sponsoredAccount:{account}"}, "testLead": test,
         "versionedLeadGenFormUrn": f"urn:li:versionedLeadGenForm:(urn:li:leadGenForm:{form},1)", "submittedAt": ts,
         "leadMetadata": {"sponsoredLeadMetadata": {"campaign": f"urn:li:sponsoredCampaign:{campaign}"}} if campaign else {},
@@ -83,6 +84,23 @@ class Status(unittest.TestCase):
             {"date": "2026-09-21", "accountId": 2, "campaignId": None, "adId": None, "status": "In Brevo, no deal", "count": 1, "unsubscribed": 0},
         ])
         self.assertEqual(report, {"noEmail": 1, "unknownStages": {"New": 1}})
+
+    def test_manual_override_sets_status(self):
+        rows = ls.aggregate([lead("x@x.com", lead_id="L1"), lead("y@x.com", lead_id="L2")], {"55": {7}}, [], [], STAGES,
+                            overrides={"L1": "Won"})
+        self.assertEqual([(r["status"], r["count"]) for r in rows], [("Not in Brevo", 1), ("Won", 1)])
+
+    def test_load_overrides(self):
+        import tempfile, os
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, "o.json")
+            open(p, "w").write('{"L1": {"status": "Won", "note": "before Brevo"}}')
+            self.assertEqual(ls.load_overrides(p), {"L1": "Won"})
+            open(p, "w").write('{"L1": {"status": "Closed"}}')
+            with self.assertRaises(SystemExit) as cm:
+                ls.load_overrides(p)
+            self.assertIn("Closed", str(cm.exception))
+            self.assertEqual(ls.load_overrides(os.path.join(tmp, "missing.json")), {})
 
     def test_aggregate_has_no_personal_data(self):
         out = json.dumps(ls.aggregate([lead("a@x.com"), lead("zz@y.org")], {"55": {7}}, [{"id": 1, "email": "a@x.com"}], [], STAGES))

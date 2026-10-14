@@ -4,12 +4,27 @@
 Only counts leave this module: rows of {date, accountId, campaignId, adId, status, count, unsubscribed}.
 Emails are used in memory for the join and never returned, logged or written.
 """
-import re
+import json, re, sys
 from collections import Counter
 from datetime import datetime, timezone
 
 STATUSES = ["Not in Brevo", "In Brevo, no deal", "Cold", "Warm", "Hot", "Won", "Lost"]
 DEAL_RANK = {"Lost": 1, "Cold": 2, "Warm": 3, "Hot": 4, "Won": 5}  # most advanced deal wins
+
+
+def load_overrides(path):
+    """Manual statuses keyed by LinkedIn lead id, e.g. deals won before Brevo was set up.
+    File: {"<lead id>": {"status": "Won", "note": "..."}} — no personal data, only the opaque lead id."""
+    try:
+        raw = json.load(open(path))
+    except FileNotFoundError:
+        return {}
+    out = {}
+    for lead_id, entry in raw.items():
+        if entry.get("status") not in STATUSES:
+            sys.exit(f"{path}: unknown status {entry.get('status')!r} for lead {lead_id} (allowed: {STATUSES})")
+        out[lead_id] = entry["status"]
+    return out
 
 
 def urn_id(urn):
@@ -65,7 +80,7 @@ def deal_stage_by_contact(deals, stages):
     return best
 
 
-def aggregate(leads, email_qids_by_form, contacts, deals, stages, report=None):
+def aggregate(leads, email_qids_by_form, contacts, deals, stages, report=None, overrides=None):
     """`report` (optional dict) receives data-quality counts: leads with no email, unknown deal stage names."""
     by_email = {c["email"].strip().lower(): c for c in contacts if c.get("email")}
     stage_by_contact = deal_stage_by_contact(deals, stages)
@@ -78,6 +93,7 @@ def aggregate(leads, email_qids_by_form, contacts, deals, stages, report=None):
         no_email += email is None
         contact = by_email.get(email)
         status = "Not in Brevo" if contact is None else stage_by_contact.get(contact["id"], "In Brevo, no deal")
+        status = (overrides or {}).get(lead.get("id"), status)
         key = (datetime.fromtimestamp(lead["submittedAt"] / 1000, timezone.utc).date().isoformat(),
                urn_id((lead.get("owner") or {}).get("sponsoredAccount")),
                urn_id(((lead.get("leadMetadata") or {}).get("sponsoredLeadMetadata") or {}).get("campaign")),

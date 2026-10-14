@@ -136,11 +136,11 @@ def build(accounts_cfg, api, today, now_iso):
     return out
 
 
-def build_lead_status(accounts_cfg, li_api, brevo_fetch, report=None):
+def build_lead_status(accounts_cfg, li_api, brevo_fetch, report=None, overrides=None):
     leads = [lead for cfg in accounts_cfg for lead in ls.fetch_leads(li_api.get, li_api.enc, cfg["id"])]
     email_qids = ls.email_question_ids(li_api.get, {ls.form_id(lead) for lead in leads} - {None})
     return ls.aggregate(leads, email_qids, brevo.contacts(brevo_fetch), brevo.deals(brevo_fetch),
-                        brevo.stages(brevo_fetch), report)
+                        brevo.stages(brevo_fetch), report, overrides)
 
 
 def main():
@@ -152,7 +152,8 @@ def main():
     data = build(cfg, li, date.today(), datetime.now(timezone.utc).isoformat(timespec="seconds"))
     key = brevo.load_key()
     report = {}
-    data["leadStatus"] = build_lead_status(cfg, li, lambda path: brevo.get(path, key), report)
+    data["leadStatus"] = build_lead_status(cfg, li, lambda path: brevo.get(path, key), report,
+                                           ls.load_overrides(ROOT / "lead_overrides.json"))
     if report["noEmail"]:
         print(f"::warning::{report['noEmail']} leads have no email answer; they count as 'Not in Brevo'.")
     if report["unknownStages"]:

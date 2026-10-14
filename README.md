@@ -37,6 +37,13 @@ Add `{"id": <account id>, "label": "<short name>"}` to `accounts.json` and push.
 3. Push to `main` (or *Run workflow*). A push before steps 1–2 fails with
    "Missing LKDN_CLIENT_ID (.env locally, repository secret in CI)" or at "configure-pages".
 
+## Manual lead statuses
+
+`lead_overrides.json` forces a status for a lead the CRM can't show (e.g. won before Brevo was set up).
+Key = LinkedIn lead id (from the lead export, first column); value = `{"status": "Won", "note": "why"}`.
+Allowed statuses: Not in Brevo, In Brevo, no deal, Cold, Warm, Hot, Won, Lost.
+Never put names, emails or phones in this file: the repo is public.
+
 ## GitHub secrets
 
 | Secret | Value |
