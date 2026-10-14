@@ -38,7 +38,8 @@ test("statusTotals", () => {
 test("funnel values and step rates", () => {
   const steps = L.funnel(L.statusTotals(rows));
   assert.deepEqual(steps.map((s) => s.value), [15, 13, 5, 1, 1]);
-  assert.deepEqual(steps.map((s) => s.rate), [null, 13 / 15, 5 / 13, 1 / 5, 1]);
+  assert.deepEqual(steps.map((s) => s.rate), [null, 13 / 15, 5 / 13, 1 / 5, 1 / 5]);  // Hot and Won as a share of deals
+  assert.deepEqual(steps.map((s) => s.of), [null, "previous step", "previous step", "deals", "deals"]);
   assert.deepEqual(L.funnel(L.statusTotals([])).map((s) => s.rate), [null, null, null, null, null]);
 });
 

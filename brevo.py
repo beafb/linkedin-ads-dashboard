@@ -29,24 +29,29 @@ def get(path, key, opener=urllib.request.urlopen):
             sys.exit(f"Brevo GET {path.split('?')[0]} failed ({e.code}): {e.read().decode()[:200]}")
 
 
+MAX_PAGES = 1000  # safety stop: a server that never returns an empty page must not loop forever
+
+
+# Paging advances by what the server actually returned (it may cap page size) and stops on an empty page.
 def contacts(fetch):
-    out, offset = [], 0
-    while True:
-        r = fetch(f"/contacts?limit=1000&offset={offset}")
-        out += r.get("contacts", [])
-        offset += 1000
-        if offset >= r.get("count", 0):
+    out = []
+    for _ in range(MAX_PAGES):
+        r = fetch(f"/contacts?limit=1000&offset={len(out)}")
+        page = r.get("contacts", [])
+        out += page
+        if not page or len(out) >= r.get("count", float("inf")):
             return out
+    sys.exit(f"Brevo contacts: still not finished after {MAX_PAGES} pages")
 
 
 def deals(fetch):
-    out, offset = [], 0
-    while True:
-        items = fetch(f"/crm/deals?limit=500&offset={offset}").get("items", [])
-        out += items
-        offset += 500
-        if len(items) < 500:
+    out = []
+    for _ in range(MAX_PAGES):
+        items = fetch(f"/crm/deals?limit=500&offset={len(out)}").get("items", [])
+        if not items:
             return out
+        out += items
+    sys.exit(f"Brevo deals: still not finished after {MAX_PAGES} pages")
 
 
 def stages(fetch):

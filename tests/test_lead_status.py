@@ -31,12 +31,18 @@ class Parsing(unittest.TestCase):
         def lk_get(path, query):
             seen.append(path)
             return {"content": {"questions": forms[path.rsplit("/", 1)[-1]]}}
-        self.assertEqual(ls.email_question_ids(lk_get, {"55", "66"}), {7, 9})
+        self.assertEqual(ls.email_question_ids(lk_get, {"55", "66"}), {"55": {7}, "66": {9}})
         self.assertEqual(sorted(seen), ["/leadForms/55", "/leadForms/66"])
 
     def test_lead_email_normalised(self):
-        self.assertEqual(ls.lead_email(lead("  Jane@X.com "), {7}), "jane@x.com")
-        self.assertIsNone(ls.lead_email(lead(None), {7}))
+        self.assertEqual(ls.lead_email(lead("  Jane@X.com "), {"55": {7}}), "jane@x.com")
+        self.assertIsNone(ls.lead_email(lead(None), {"55": {7}}))
+
+    def test_lead_email_uses_its_own_form(self):
+        # form 66 reuses question id 1 (first name in form 55) for its email: never mix them up
+        qids = {"55": {7}, "66": {1}}
+        self.assertEqual(ls.lead_email(lead("a@x.com", form=55), qids), "a@x.com")
+        self.assertIsNone(ls.lead_email(lead("a@x.com", form=77), qids))
 
     def test_fetch_leads_pages(self):
         calls = []
@@ -67,16 +73,19 @@ class Status(unittest.TestCase):
         deals = [{"attributes": {"deal_stage": "s3"}, "linkedContactsIds": [1]}]
         leads = [lead("a@x.com"), lead("b@x.com"), lead("b@x.com"), lead("d@x.com"), lead(None),
                  lead("e@x.com", test=True), lead("c@x.com", campaign=None, ad=None, account=2)]
-        rows = ls.aggregate(leads, {7}, contacts, deals, STAGES)
+        report = {}
+        rows = ls.aggregate(leads, {"55": {7}}, contacts, deals + [{"attributes": {"deal_stage": "s9"}, "linkedContactsIds": [3]}],
+                            {**STAGES, "s9": "New"}, report)
         self.assertEqual(rows, [
             {"date": "2026-09-21", "accountId": 1, "campaignId": 10, "adId": 100, "status": "Not in Brevo", "count": 2, "unsubscribed": 0},
             {"date": "2026-09-21", "accountId": 1, "campaignId": 10, "adId": 100, "status": "In Brevo, no deal", "count": 2, "unsubscribed": 2},
             {"date": "2026-09-21", "accountId": 1, "campaignId": 10, "adId": 100, "status": "Hot", "count": 1, "unsubscribed": 0},
             {"date": "2026-09-21", "accountId": 2, "campaignId": None, "adId": None, "status": "In Brevo, no deal", "count": 1, "unsubscribed": 0},
         ])
+        self.assertEqual(report, {"noEmail": 1, "unknownStages": {"New": 1}})
 
     def test_aggregate_has_no_personal_data(self):
-        out = json.dumps(ls.aggregate([lead("a@x.com"), lead("zz@y.org")], {7}, [{"id": 1, "email": "a@x.com"}], [], STAGES))
+        out = json.dumps(ls.aggregate([lead("a@x.com"), lead("zz@y.org")], {"55": {7}}, [{"id": 1, "email": "a@x.com"}], [], STAGES))
         self.assertNotIn("@", out)
         self.assertNotIn("Jane", out)
 

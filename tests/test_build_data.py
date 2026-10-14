@@ -177,6 +177,8 @@ class LeadStatusWiring(unittest.TestCase):
             if path.startswith("/contacts"):
                 return {"count": 1, "contacts": [{"id": 9, "email": "a@x.com"}]}
             if path.startswith("/crm/deals"):
+                if not path.endswith("offset=0"):
+                    return {"items": []}
                 return {"items": [{"attributes": {"deal_stage": "w"}, "linkedContactsIds": [9]}]}
             if path == "/crm/pipeline/details/all":
                 return [{"stages": [{"id": "w", "name": "Warm"}]}]

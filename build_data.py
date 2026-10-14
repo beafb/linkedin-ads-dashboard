@@ -136,11 +136,11 @@ def build(accounts_cfg, api, today, now_iso):
     return out
 
 
-def build_lead_status(accounts_cfg, li_api, brevo_fetch):
+def build_lead_status(accounts_cfg, li_api, brevo_fetch, report=None):
     leads = [lead for cfg in accounts_cfg for lead in ls.fetch_leads(li_api.get, li_api.enc, cfg["id"])]
     email_qids = ls.email_question_ids(li_api.get, {ls.form_id(lead) for lead in leads} - {None})
     return ls.aggregate(leads, email_qids, brevo.contacts(brevo_fetch), brevo.deals(brevo_fetch),
-                        brevo.stages(brevo_fetch))
+                        brevo.stages(brevo_fetch), report)
 
 
 def main():
@@ -151,7 +151,12 @@ def main():
     cfg = json.loads((ROOT / "accounts.json").read_text())
     data = build(cfg, li, date.today(), datetime.now(timezone.utc).isoformat(timespec="seconds"))
     key = brevo.load_key()
-    data["leadStatus"] = build_lead_status(cfg, li, lambda path: brevo.get(path, key))
+    report = {}
+    data["leadStatus"] = build_lead_status(cfg, li, lambda path: brevo.get(path, key), report)
+    if report["noEmail"]:
+        print(f"::warning::{report['noEmail']} leads have no email answer; they count as 'Not in Brevo'.")
+    if report["unknownStages"]:
+        print(f"::warning::Deals in pipeline stages the dashboard does not know (counted as no deal): {report['unknownStages']}")
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(data, separators=(",", ":")))
     for a in data["accounts"]:

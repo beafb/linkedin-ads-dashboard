@@ -14,7 +14,7 @@ export function renderLeadFunnel(container, totals, f, withRates) {
     const label = el("div", "lf-label", s.label);
     label.append(info(GLOSSARY[STEP_HELP[s.key]]));
     li.append(el("div", "lf-value", f.num(s.value)), label);
-    if (withRates && s.rate != null) li.append(el("div", "lf-rate", `${f.pct(s.rate)} of previous step`));
+    if (withRates && s.rate != null) li.append(el("div", "lf-rate", `${f.pct(s.rate)} of ${s.of}`));
     return li;
   }));
 }

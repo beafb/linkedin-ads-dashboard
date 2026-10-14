@@ -21,12 +21,16 @@ export function statusTotals(rows) {
   return { total, byStatus, unsubscribed, inBrevo: total - byStatus["Not in Brevo"], deals, hot: byStatus.Hot, won: byStatus.Won };
 }
 
+// Each lead has one status, so Hot and Won are both shares of deals (a Won lead was never counted as Hot).
 export function funnel(t) {
-  const steps = [["leads", "Leads (forms)", t.total], ["inBrevo", "In Brevo", t.inBrevo], ["deals", "Deals", t.deals],
-    ["hot", "Hot", t.hot], ["won", "Won", t.won]];
-  return steps.map(([key, label, value], i) => ({
-    key, label, value, rate: i === 0 || !steps[i - 1][2] ? null : value / steps[i - 1][2],
-  }));
+  const step = (key, label, value, base, of) => ({ key, label, value, of, rate: base ? value / base : null });
+  return [
+    { ...step("leads", "Leads (forms)", t.total, 0, null), rate: null },
+    step("inBrevo", "In Brevo", t.inBrevo, t.total, "previous step"),
+    step("deals", "Deals", t.deals, t.inBrevo, "previous step"),
+    step("hot", "Hot", t.hot, t.deals, "deals"),
+    step("won", "Won", t.won, t.deals, "deals"),
+  ];
 }
 
 export function dealSentence(t, f) {

@@ -13,13 +13,31 @@ class Paging(unittest.TestCase):
         self.assertEqual(len(brevo.contacts(fetch)), 1500)
         self.assertEqual(calls, ["/contacts?limit=1000&offset=0", "/contacts?limit=1000&offset=1000"])
 
-    def test_deals_pages_until_short_page(self):
+    def test_deals_pages_until_empty_page_even_if_server_caps_size(self):
+        pages = [[{}] * 100, [{}] * 100, [{}] * 50, []]  # server returns at most 100 per page
         calls = []
         def fetch(path):
             calls.append(path)
-            return {"items": [{}] * (500 if len(calls) == 1 else 2)}
-        self.assertEqual(len(brevo.deals(fetch)), 502)
-        self.assertEqual(calls, ["/crm/deals?limit=500&offset=0", "/crm/deals?limit=500&offset=500"])
+            return {"items": pages[len(calls) - 1]}
+        self.assertEqual(len(brevo.deals(fetch)), 250)
+        self.assertEqual(calls, ["/crm/deals?limit=500&offset=0", "/crm/deals?limit=500&offset=100",
+                                 "/crm/deals?limit=500&offset=200", "/crm/deals?limit=500&offset=250"])
+
+    def test_contacts_follow_returned_size_and_stop_on_empty(self):
+        calls = []
+        def fetch(path):
+            calls.append(path)
+            return {"count": 1200, "contacts": [{}] * (500 if len(calls) < 3 else 200)}  # capped at 500
+        self.assertEqual(len(brevo.contacts(fetch)), 1200)
+        self.assertEqual(calls, ["/contacts?limit=1000&offset=0", "/contacts?limit=1000&offset=500",
+                                 "/contacts?limit=1000&offset=1000"])
+        empty = lambda path: {"contacts": []}  # no count field
+        self.assertEqual(brevo.contacts(empty), [])
+
+    def test_paging_gives_up_on_endless_pages(self):
+        with self.assertRaises(SystemExit) as cm:
+            brevo.deals(lambda path: {"items": [{}]})
+        self.assertIn("pages", str(cm.exception))
 
     def test_stages_flatten_all_pipelines(self):
         fetch = lambda path: [{"stages": [{"id": "a", "name": "Cold"}]}, {"stages": [{"id": "b", "name": "Won"}]}]
