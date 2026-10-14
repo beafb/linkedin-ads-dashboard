@@ -21,7 +21,8 @@ export function rangeFor(preset, today, firstDate) {
       return { start: `${end.slice(0, 7)}-01`, end };
     }
     case "ytd": return { start: `${today.slice(0, 4)}-01-01`, end: today };
-    case "all": return { start: firstDate || today, end: today };
+    case "all":
+    case "launch": return { start: firstDate || today, end: today };  // caller passes the matching first date
     default: throw new Error(`Unknown range preset: ${preset}`);
   }
 }

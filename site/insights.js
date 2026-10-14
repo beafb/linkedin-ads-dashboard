@@ -3,7 +3,7 @@ import { ratios, delta, groupTotals } from "./metrics.js";
 
 export const PERIOD_PHRASE = {
   "7d": "In the last 7 days", "30d": "In the last 30 days", month: "This month",
-  lastmonth: "Last month", ytd: "This year", all: "Since the start",
+  lastmonth: "Last month", ytd: "This year", all: "Since the start", launch: "Since 3CC started",
 };
 
 const pctRound = (d) => Math.round(d * 100);

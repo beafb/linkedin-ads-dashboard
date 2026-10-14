@@ -14,6 +14,8 @@ test("rangeFor presets", () => {
   assert.deepEqual(M.rangeFor("lastmonth", "2026-01-15"), { start: "2025-12-01", end: "2025-12-31" });
   assert.deepEqual(M.rangeFor("ytd", t), { start: "2026-01-01", end: t });
   assert.deepEqual(M.rangeFor("all", t, "2026-04-06"), { start: "2026-04-06", end: t });
+  assert.deepEqual(M.rangeFor("launch", t, "2026-07-14"), { start: "2026-07-14", end: t });
+  assert.deepEqual(M.rangeFor("launch", t), { start: t, end: t });
   assert.throws(() => M.rangeFor("bogus", t));
 });
 

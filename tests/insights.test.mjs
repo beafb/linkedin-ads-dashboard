@@ -38,7 +38,7 @@ test("story: singulars and no leads", () => {
 
 test("story: period phrases", () => {
   const cur = t({ impressions: 1 });
-  for (const [preset, phrase] of [["month", "This month"], ["lastmonth", "Last month"], ["ytd", "This year"], ["all", "Since the start"]]) {
+  for (const [preset, phrase] of [["month", "This month"], ["lastmonth", "Last month"], ["ytd", "This year"], ["all", "Since the start"], ["launch", "Since 3CC started"]]) {
     assert.ok(I.story(preset, cur, null, f).startsWith(`${phrase}, your ads were seen`), preset);
   }
 });

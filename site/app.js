@@ -8,9 +8,10 @@ import * as L from "./leads.js";
 import { renderLeads } from "./leads-view.js";
 
 const TABS = ["overview", "ads", "leads", "sheet"];
-const RANGES = ["7d", "30d", "month", "lastmonth", "ytd", "all"];
+const RANGES = ["7d", "30d", "month", "lastmonth", "ytd", "launch", "all"];
+const LAUNCH_ACCOUNT = "3CC";  // default period starts on this account's first day of stats
 const LEVELS = ["total", "campaign", "ad"];
-const state = { tab: "overview", account: "all", range: "all", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
+const state = { tab: "overview", account: "all", range: "launch", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
 let data, adsById, campaignsById, activeCampaignIds;
 const $ = (id) => document.getElementById(id);
 const numOrNull = (v) => (v ? Number(v) : null);
@@ -87,7 +88,9 @@ function render() {
   const adIds = new Set(ads.map((a) => a.id));
   const today = M.todayIso();
   const firstDate = data.daily.find((r) => adIds.has(r.adId))?.date || today;
-  const range = M.rangeFor(state.range, today, firstDate);
+  const launchId = data.accounts.find((a) => a.label === LAUNCH_ACCOUNT)?.id;
+  const launchDate = data.daily.find((r) => r.impressions > 0 && adsById.get(r.adId)?.accountId === launchId)?.date || firstDate;
+  const range = M.rangeFor(state.range, today, state.range === "launch" ? launchDate : firstDate);
   const ctx = {
     data, state, range, days: M.daysInclusive(range.start, range.end),
     rows: M.filterRows(data.daily, range, adIds),
