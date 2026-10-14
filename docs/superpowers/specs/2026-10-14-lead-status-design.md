@@ -21,6 +21,7 @@ campaign and ad, so the team sees which ads produce real opportunities and which
 | Period semantics | Leads **created** in the period (LinkedIn `submittedAt`, UTC day), with their status **today** |
 | Test leads | Excluded (`testLead = true`) |
 | Visibility | Public dashboard, **aggregates only**; no name, email, phone, company or answer leaves the build |
+| Small counts | Accepted by the owner on 2026-10-14: rows are per day × ad × status even when the count is 1 (incl. deals and unsubscribes). Re-identification needs outside knowledge of who filled which form when; no names/emails are published. Option to coarsen deal/unsubscribe rows to week × campaign was declined. |
 | Placement | Overview block + new **Leads** tab |
 
 ## Data
