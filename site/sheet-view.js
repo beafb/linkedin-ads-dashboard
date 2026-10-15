@@ -5,7 +5,7 @@ import { el, info, GLOSSARY } from "./ui.js";
 const $ = (id) => document.getElementById(id);
 
 const COLS = [
-  { key: "impressions", label: "Seen by", fmt: "num" },
+  { key: "impressions", label: "Impressions", fmt: "num" },
   { key: "clicks", label: "Clicks", fmt: "num" },
   { key: "ctr", label: "Click rate", fmt: "pct" },
   { key: "leadFormOpens", label: "Form opens", fmt: "num" },

@@ -43,31 +43,36 @@ test("funnel values and step rates", () => {
   assert.deepEqual(L.funnel(L.statusTotals([])).map((s) => s.rate), [null, null, null, null, null]);
 });
 
-test("dealSentence variants", () => {
-  assert.equal(L.dealSentence({ total: 0, deals: 0, hot: 0, won: 0 }, f), "");
-  assert.equal(L.dealSentence({ total: 5, deals: 0, hot: 0, won: 0 }, f), "None of them has become a deal in your CRM yet.");
-  assert.equal(L.dealSentence({ total: 30, deals: 21, hot: 3, won: 0 }, f), "So far, 21 of them became deals in your CRM, and 3 are Hot.");
-  assert.equal(L.dealSentence({ total: 30, deals: 21, hot: 3, won: 1 }, f), "So far, 21 of them became deals in your CRM, 3 are Hot and 1 was won.");
-  assert.equal(L.dealSentence({ total: 30, deals: 1, hot: 0, won: 1 }, f), "So far, 1 of them became a deal in your CRM, and 1 was won.");
-  assert.equal(L.dealSentence({ total: 30, deals: 2, hot: 1, won: 0 }, f), "So far, 2 of them became deals in your CRM, and 1 is Hot.");
-  assert.equal(L.dealSentence({ total: 30, deals: 4, hot: 0, won: 2 }, f), "So far, 4 of them became deals in your CRM, and 2 were won.");
-  assert.equal(L.dealSentence({ total: 30, deals: 4, hot: 0, won: 0 }, f), "So far, 4 of them became deals in your CRM.");
+test("fullFunnel: ads steps, then Brevo steps when there is lead data", () => {
+  const ad = { impressions: 1000, clicks: 50, leads: 16 };
+  const steps = L.fullFunnel(ad, L.statusTotals(rows));
+  assert.deepEqual(steps.map((s) => s.key), ["impressions", "clicks", "leads", "inBrevo", "deals", "won"]);
+  assert.deepEqual(steps.map((s) => s.value), [1000, 50, 16, 13, 5, 1]);
+  assert.deepEqual(steps.map((s) => s.rate), [null, 0.05, 16 / 50, 13 / 15, 5 / 13, 1 / 5]);  // In Brevo vs form leads
+  assert.deepEqual(L.fullFunnel(ad, L.statusTotals([])).map((s) => s.key), ["impressions", "clicks", "leads"]);
+  assert.equal(L.fullFunnel({ impressions: 0, clicks: 0, leads: 0 }, L.statusTotals([]))[1].rate, null);
 });
 
-test("weekStart is the Monday", () => {
-  assert.equal(L.weekStart("2026-10-01"), "2026-09-28");
-  assert.equal(L.weekStart("2026-09-28"), "2026-09-28");
-  assert.equal(L.weekStart("2026-10-04"), "2026-09-28");
+test("followUpSeries folds deal stages into Deal, per week or per day", () => {
+  const w = L.followUpSeries(rows, { start: "2026-09-29", end: "2026-10-06" }, "week");
+  assert.deepEqual(w.days, ["2026-09-28", "2026-10-05"]);
+  assert.deepEqual(w.series.get("Not in Brevo"), [2, 0]);
+  assert.deepEqual(w.series.get("In Brevo, no deal"), [8, 0]);
+  assert.deepEqual(w.series.get("Deal"), [4, 1]);
+  assert.deepEqual([...w.series.keys()], L.FOLLOW_UP);
+  const d = L.followUpSeries(rows, { start: "2026-09-30", end: "2026-10-01" }, "day");
+  assert.deepEqual(d.days, ["2026-09-30", "2026-10-01"]);
+  assert.deepEqual(d.series.get("Deal"), [2, 2]);
+  assert.deepEqual(d.series.get("In Brevo, no deal"), [0, 3]);
 });
 
-test("weeklyStatus stacks counts per Monday week, every status present", () => {
-  const { weeks, series } = L.weeklyStatus(rows, { start: "2026-09-29", end: "2026-10-06" });
-  assert.deepEqual(weeks, ["2026-09-28", "2026-10-05"]);
-  assert.deepEqual(series.get("Not in Brevo"), [2, 0]);
-  assert.deepEqual(series.get("In Brevo, no deal"), [8, 0]);
-  assert.deepEqual(series.get("Won"), [1, 0]);
-  assert.deepEqual(series.get("Lost"), [0, 1]);
-  assert.deepEqual([...series.keys()], L.STATUSES);
+test("pipeline lists non-empty stages in order", () => {
+  assert.equal(L.pipeline(L.statusTotals(rows).byStatus), "2 warm · 1 hot · 1 won · 1 lost");
+  assert.equal(L.pipeline(L.statusTotals([]).byStatus), "");
+});
+
+test("dealsBy counts deal stages only", () => {
+  assert.deepEqual([...L.dealsBy(rows, "adId")], [[101, 2], [200, 1], [300, 2]]);
 });
 
 test("leadTable by campaign: sorted by deals then leads, cost per deal, unknown campaign", () => {

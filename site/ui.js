@@ -1,10 +1,10 @@
-// Shared DOM helpers: element builder, formatters, glossary, ⓘ tooltips, count-up, charts, sparklines.
+// Shared DOM helpers: element builder, formatters, glossary, icons, info tooltips, count-up, charts, sparklines.
 import { toDate } from "./metrics.js";
 
 export const DASH = "—";
 
 export const GLOSSARY = {
-  impressions: "Seen by (impressions): how many times your ads were shown on screen.",
+  impressions: "Impressions: how many times your ads were shown on screen (one person can see an ad several times).",
   clicks: "Clicks: how many times someone clicked your ad.",
   ctr: "Click rate (CTR): out of 100 people who saw the ad, how many clicked.",
   leadFormOpens: "Form opens: how many people opened your lead form.",
@@ -19,7 +19,7 @@ export const GLOSSARY = {
   hot: "Hot: deals marked Hot in your pipeline.",
   won: "Won: deals marked Won in your pipeline.",
   costPerDeal: "Cost per deal: ad spend ÷ number of deals.",
-  unsubscribed: "Unsubscribed: leads who unsubscribed from your emails.",
+  pipeline: "Pipeline: where those deals stand today in Brevo (Cold, Warm, Hot, Won, Lost).",
 };
 
 export function el(tag, cls, text) {
@@ -33,6 +33,8 @@ export function formatters(currency) {
   const num = new Intl.NumberFormat("en-IE");
   const money = new Intl.NumberFormat("en-IE", { style: "currency", currency });
   const pct = new Intl.NumberFormat("en-IE", { style: "percent", maximumFractionDigits: 2 });
+  const money0 = new Intl.NumberFormat("en-IE", { style: "currency", currency, maximumFractionDigits: 0 });
+  const moneyK = new Intl.NumberFormat("en-IE", { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 });
   const compact = new Intl.NumberFormat("en-IE", { notation: "compact" });
   const date = (iso, opts) => toDate(iso).toLocaleDateString("en-GB", { ...opts, timeZone: "UTC" });
   return {
@@ -40,17 +42,34 @@ export function formatters(currency) {
     money: (v) => (v == null ? DASH : money.format(v)),
     pct: (v) => (v == null ? DASH : pct.format(v)),
     compact: (v) => compact.format(v),
-    per1000: (v) => (v < 10 ? v.toFixed(1) : num.format(Math.round(v))),
+    moneyTick: (v) => moneyK.format(v),  // axis ticks: €150, €1.5K
+    // Totals don't need cents: €28.6K, €1,301, but €14.80 for small unit costs
+    moneyShort: (v) => (v == null ? DASH : Math.abs(v) >= 10000 ? moneyK.format(v)
+      : Math.abs(v) >= 100 ? money0.format(v) : money.format(v)),
     day: (iso) => date(iso, { day: "numeric", month: "short" }),
     longDay: (iso) => date(iso, { weekday: "long", day: "numeric", month: "short" }),
     sheetDay: (iso) => date(iso, { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
   };
 }
 
+// Monochrome line icons (Lucide, ISC licence), drawn in currentColor.
+const ICONS = {
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+};
+export function icon(name, cls = "icon") {
+  const span = el("span", cls);
+  span.setAttribute("aria-hidden", "true");
+  span.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+  return span;
+}
+
 let tipCount = 0;
 export function info(text) {
   const wrap = el("span", "info");
-  const btn = el("button", "info-btn", "ⓘ");
+  const btn = el("button", "info-btn");
+  btn.append(icon("info"));
   btn.type = "button";
   btn.setAttribute("aria-label", "What does this mean?");
   const tip = el("span", "info-tip", text);
@@ -83,36 +102,50 @@ export function countUp(node, target, format) {
 const charts = {};
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-export function drawChart(id, type, labels, values, fmt, tick) {
+// Same ticks on every time chart whatever its width: the labels shown depend only on the number of buckets.
+function timeAxis(labels, grid, muted, stacked = false) {
+  const every = Math.max(1, Math.ceil(labels.length / 6));
+  return {
+    stacked, offset: true, grid: { display: false }, border: { color: grid },
+    ticks: { color: muted, autoSkip: false, maxRotation: 0,
+             callback: (v, i) => (i % every === 0 ? labels[i] : null) },
+  };
+}
+const valueAxis = (grid, muted, tick, stacked = false) => ({
+  stacked, beginAtZero: true, grid: { color: grid }, border: { display: false },
+  ticks: { color: muted, maxTicksLimit: 5, callback: (v) => tick(v) },
+});
+
+// One series over time. `opts.average` adds a dashed reference line (e.g. the period's cost per lead).
+export function drawChart(id, type, labels, values, fmt, tick, opts = {}) {
   charts[id]?.destroy();
   const series = cssVar("--series-1"), muted = cssVar("--text-muted"), grid = cssVar("--grid");
+  const datasets = [{
+    label: opts.label || "", data: values, backgroundColor: series, borderColor: series, borderWidth: 2,
+    borderRadius: 4, maxBarThickness: 18, categoryPercentage: 0.9, barPercentage: 0.9,
+    pointHoverRadius: 4, spanGaps: false,
+    // show a dot only for isolated values, otherwise a line with gaps would hide them
+    pointRadius: (ctx) => {
+      const d = ctx.dataset.data, i = ctx.dataIndex;
+      return d[i] != null && d[i - 1] == null && d[i + 1] == null ? 4 : 0;
+    },
+  }];
+  if (opts.average != null) {
+    datasets.push({ type: "line", label: "Average", data: labels.map(() => opts.average), borderColor: muted,
+      borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, pointHoverRadius: 0 });
+  }
   charts[id] = new Chart(document.getElementById(id), {
     type,
-    data: {
-      labels,
-      datasets: [{
-        data: values, backgroundColor: series, borderColor: series, borderWidth: 2,
-        borderRadius: 4, maxBarThickness: 18, categoryPercentage: 0.9, barPercentage: 0.9,
-        pointHoverRadius: 4,
-        // show a dot only for isolated values, otherwise a line with gaps would hide them
-        pointRadius: (ctx) => {
-          const d = ctx.dataset.data, i = ctx.dataIndex;
-          return d[i] != null && d[i - 1] == null && d[i + 1] == null ? 4 : 0;
-        },
-      }],
-    },
+    data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false, animation: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: { displayColors: false, callbacks: { label: (ctx) => fmt(ctx.parsed.y) } },
+        tooltip: { displayColors: false, filter: (it) => it.parsed.y != null,
+          callbacks: { label: (ctx) => (ctx.datasetIndex ? `Average: ${fmt(ctx.parsed.y)}` : fmt(ctx.parsed.y)) } },
       },
-      scales: {
-        x: { grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 6, maxRotation: 0 } },
-        y: { beginAtZero: true, grid: { color: grid }, border: { display: false },
-             ticks: { color: muted, maxTicksLimit: 5, callback: (v) => tick(v) } },
-      },
+      scales: { x: timeAxis(labels, grid, muted), y: valueAxis(grid, muted, tick) },
     },
   });
 }
@@ -146,12 +179,39 @@ export function drawStacked(id, labels, datasets, fmt, tick) {
           },
         },
       },
+      scales: { x: timeAxis(labels, grid, muted, true), y: valueAxis(grid, muted, tick, true) },
+    },
+  });
+}
+
+// Horizontal bars for a handful of categories, values written at the end of each bar.
+export function drawBars(id, labels, values, colorVar, fmt) {
+  charts[id]?.destroy();
+  const color = cssVar(colorVar), muted = cssVar("--text-muted"), secondary = cssVar("--text-secondary");
+  charts[id] = new Chart(document.getElementById(id), {
+    type: "bar",
+    data: { labels, datasets: [{ data: values, backgroundColor: color, borderRadius: 4, maxBarThickness: 22 }] },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false,
+      layout: { padding: { right: 28 } },
+      plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { label: (ctx) => fmt(ctx.parsed.x) } } },
       scales: {
-        x: { stacked: true, grid: { display: false }, border: { color: grid }, ticks: { color: muted, maxTicksLimit: 8, maxRotation: 0 } },
-        y: { stacked: true, beginAtZero: true, grid: { color: grid }, border: { display: false },
-             ticks: { color: muted, maxTicksLimit: 5, callback: (v) => tick(v) } },
+        x: { display: false, beginAtZero: true },
+        y: { grid: { display: false }, border: { display: false }, ticks: { color: secondary } },
       },
     },
+    plugins: [{
+      id: "values",
+      afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        ctx.save();
+        ctx.fillStyle = muted;
+        ctx.font = "600 12px system-ui, sans-serif";
+        ctx.textBaseline = "middle";
+        chart.getDatasetMeta(0).data.forEach((bar, i) => ctx.fillText(fmt(values[i]), bar.x + 6, bar.y));
+        ctx.restore();
+      },
+    }],
   });
 }
 

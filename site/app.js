@@ -11,7 +11,7 @@ const TABS = ["overview", "ads", "leads", "sheet"];
 const RANGES = ["7d", "30d", "month", "lastmonth", "ytd", "launch", "all"];
 const LAUNCH_ACCOUNT = "3CC";  // default period starts on this account's first day of stats
 const LEVELS = ["total", "campaign", "ad"];
-const state = { tab: "overview", account: "all", range: "launch", campaign: null, ad: null, level: "total", sort: "leads", leadLevel: "campaign" };
+const state = { tab: "overview", account: "all", range: "launch", campaign: null, ad: null, level: "total", sort: { key: "leads", dir: "desc" }, runningOnly: true, leadLevel: "campaign" };
 let data, adsById, campaignsById, activeCampaignIds;
 const $ = (id) => document.getElementById(id);
 const numOrNull = (v) => (v ? Number(v) : null);
@@ -53,7 +53,8 @@ function renderHeader() {
   const labels = data.accounts.map((a) => a.label);
   if (labels.length > 1) labels.push("all");
   $("accounts").replaceChildren(...labels.map((label) => {
-    const b = el("button", null, label === "all" ? (data.accounts.length === 2 ? "Both" : "All") : label);
+    const name = data.accounts.find((a) => a.label === label)?.name;
+    const b = el("button", null, label === "all" ? (data.accounts.length === 2 ? "Both accounts" : "All accounts") : name);
     b.type = "button";
     b.setAttribute("aria-pressed", String(state.account === label));
     b.onclick = () => { Object.assign(state, { account: label, campaign: null, ad: null }); render(); };
@@ -107,6 +108,7 @@ function render() {
   if (state.tab === "ads") {
     renderAds(ctx, {
       onSort: (sort) => { state.sort = sort; render(); },
+      onRunningOnly: (on) => { state.runningOnly = on; render(); },
       onSeeDaily: (id) => { Object.assign(state, { tab: "sheet", level: "ad", ad: id }); render(); window.scrollTo(0, 0); },
     });
   }

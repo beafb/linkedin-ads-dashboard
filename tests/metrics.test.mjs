@@ -94,12 +94,38 @@ test("todayIso uses the UTC day, like LinkedIn reporting", () => {
   assert.equal(M.todayIso(new Date("2026-10-02T00:30:00Z")), "2026-10-02");
 });
 
-test("byDateSplit: daily values per key, zero-filled, ignores unknown keys", () => {
+test("weekStart is the Monday", () => {
+  assert.equal(M.weekStart("2026-10-01"), "2026-09-28");
+  assert.equal(M.weekStart("2026-09-28"), "2026-09-28");
+  assert.equal(M.weekStart("2026-10-04"), "2026-09-28");
+});
+
+test("bucketFor: daily under 60 days, weekly from 60", () => {
+  assert.equal(M.bucketFor(1), "day");
+  assert.equal(M.bucketFor(59), "day");
+  assert.equal(M.bucketFor(60), "week");
+  assert.equal(M.bucketFor(400), "week");
+});
+
+test("byBucket sums per day or per Monday week, zero-filled", () => {
+  const rows = [row("2026-09-30", 1, { leads: 2, spend: 4 }), row("2026-10-04", 2, { leads: 1 }), row("2026-10-06", 1, { leads: 5 })];
+  const range = { start: "2026-09-30", end: "2026-10-12" };
+  assert.deepEqual(M.byBucket(rows, range, "week").map((d) => [d.date, d.leads]),
+    [["2026-09-28", 3], ["2026-10-05", 5], ["2026-10-12", 0]]);
+  const daily = M.byBucket(rows, { start: "2026-09-29", end: "2026-10-01" }, "day");
+  assert.deepEqual(daily.map((d) => [d.date, d.leads]), [["2026-09-29", 0], ["2026-09-30", 2], ["2026-10-01", 0]]);
+});
+
+test("byBucketSplit: values per key, zero-filled, ignores unknown keys", () => {
   const rows = [row("2026-09-30", 1, { spend: 10.1 }), row("2026-09-30", 2, { spend: 5 }), row("2026-09-30", 1, { spend: 0.2 }),
                 row("2026-10-01", 2, { spend: 3 }), row("2026-10-01", 9, { spend: 99 })];
   const accountOf = new Map([[1, "A"], [2, "B"]]);
-  const got = M.byDateSplit(rows, { start: "2026-09-29", end: "2026-10-01" }, (r) => accountOf.get(r.adId), ["A", "B"], "spend");
+  const range = { start: "2026-09-29", end: "2026-10-01" };
+  const got = M.byBucketSplit(rows, range, "day", (r) => accountOf.get(r.adId), ["A", "B"], "spend");
   assert.deepEqual(got.days, ["2026-09-29", "2026-09-30", "2026-10-01"]);
   assert.deepEqual(got.series.get("A"), [0, 10.3, 0]);
   assert.deepEqual(got.series.get("B"), [0, 5, 3]);
+  const weekly = M.byBucketSplit(rows, range, "week", (r) => accountOf.get(r.adId), ["A", "B"], "spend");
+  assert.deepEqual(weekly.days, ["2026-09-28"]);
+  assert.deepEqual(weekly.series.get("B"), [8]);
 });

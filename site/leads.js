@@ -1,5 +1,5 @@
-// Lead status (LinkedIn forms joined with Brevo): filters, totals, funnel, sentence, weekly series, table. Pure.
-import { addDays, toDate } from "./metrics.js";
+// Lead status (LinkedIn forms joined with Brevo): filters, totals, funnel, follow-up series, pipeline, table. Pure.
+import { buckets, weekStart } from "./metrics.js";
 
 export const STATUSES = ["Not in Brevo", "In Brevo, no deal", "Cold", "Warm", "Hot", "Won", "Lost"];
 const DEAL_STATUSES = ["Cold", "Warm", "Hot", "Won", "Lost"];
@@ -33,29 +33,50 @@ export function funnel(t) {
   ];
 }
 
-export function dealSentence(t, f) {
-  if (!t.total) return "";
-  if (!t.deals) return "None of them has become a deal in your CRM yet.";
-  const head = `So far, ${f.num(t.deals)} of them ${t.deals === 1 ? "became a deal" : "became deals"} in your CRM`;
-  const parts = [];
-  if (t.hot) parts.push(`${f.num(t.hot)} ${t.hot === 1 ? "is" : "are"} Hot`);
-  if (t.won) parts.push(`${f.num(t.won)} ${t.won === 1 ? "was" : "were"} won`);
-  if (!parts.length) return `${head}.`;
-  return parts.length === 1 ? `${head}, and ${parts[0]}.` : `${head}, ${parts.join(" and ")}.`;
+// Overview funnel, ads to CRM. Ad steps use LinkedIn's ad reports; the Brevo steps use the lead-form export,
+// so "In Brevo" is a share of form leads (the two lead counts can differ slightly).
+export function fullFunnel(ad, t) {
+  const rate = (v, base) => (base ? v / base : null);
+  const steps = [
+    { key: "impressions", label: "Impressions", value: ad.impressions, rate: null },
+    { key: "clicks", label: "Clicks", value: ad.clicks, rate: rate(ad.clicks, ad.impressions), of: "impressions" },
+    { key: "leads", label: "Leads", value: ad.leads, rate: rate(ad.leads, ad.clicks), of: "clicks" },
+  ];
+  if (!t.total) return steps;
+  return [...steps,
+    { key: "inBrevo", label: "In Brevo", value: t.inBrevo, rate: rate(t.inBrevo, t.total), of: "leads" },
+    { key: "deals", label: "Deals", value: t.deals, rate: rate(t.deals, t.inBrevo), of: "in Brevo" },
+    { key: "won", label: "Won", value: t.won, rate: rate(t.won, t.deals), of: "deals" },
+  ];
 }
 
-export const weekStart = (iso) => addDays(iso, -((toDate(iso).getUTCDay() + 6) % 7));
+// Follow-up view for the chart: deal stages fold into one "Deal" series (the stages get their own chart).
+export const FOLLOW_UP = ["Not in Brevo", "In Brevo, no deal", "Deal"];
+const followUpOf = (status) => (DEAL_STATUSES.includes(status) ? "Deal" : status);
 
-export function weeklyStatus(rows, { start, end }) {
-  const weeks = [];
-  for (let w = weekStart(start); w <= end; w = addDays(w, 7)) weeks.push(w);
-  const index = new Map(weeks.map((w, i) => [w, i]));
-  const series = new Map(STATUSES.map((s) => [s, weeks.map(() => 0)]));
+export function followUpSeries(rows, range, bucket) {
+  const key = bucket === "week" ? weekStart : (iso) => iso;
+  const days = buckets(range, bucket);
+  const index = new Map(days.map((d, i) => [d, i]));
+  const series = new Map(FOLLOW_UP.map((s) => [s, days.map(() => 0)]));
   for (const r of rows) {
-    const i = index.get(weekStart(r.date));
-    if (i != null && series.has(r.status)) series.get(r.status)[i] += r.count;
+    const i = index.get(key(r.date)), s = series.get(followUpOf(r.status));
+    if (i != null && s) s[i] += r.count;
   }
-  return { weeks, series };
+  return { days, series };
+}
+
+export const PIPELINE = DEAL_STATUSES;
+
+// "4 warm · 2 hot · 1 won": only the stages that have deals, in pipeline order.
+export function pipeline(byStatus) {
+  return PIPELINE.filter((s) => byStatus[s]).map((s) => `${byStatus[s]} ${s.toLowerCase()}`).join(" · ");
+}
+
+export function dealsBy(rows, key) {
+  const out = new Map();
+  for (const r of rows) if (DEAL_STATUSES.includes(r.status)) out.set(r[key], (out.get(r[key]) || 0) + r.count);
+  return out;
 }
 
 export function leadTable(rows, level, nameOf, spendById, totalSpend) {

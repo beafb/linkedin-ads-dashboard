@@ -1,32 +1,31 @@
-// Overview tab: story, headline tiles, highlights, per-1,000 funnel, daily charts.
+// Overview tab: four headline tiles, the Brevo alert, one ads-to-deals funnel, three time charts.
 import * as M from "./metrics.js";
 import * as I from "./insights.js";
 import * as L from "./leads.js";
-import { el, info, countUp, drawChart, drawStacked, GLOSSARY } from "./ui.js";
-import { renderLeadFunnel } from "./leads-view.js";
+import { el, info, icon, countUp, drawChart, drawStacked, GLOSSARY } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 
 const TILES = [
+  { key: "spend", label: "Spend", good: null },
   { key: "leads", label: "Leads", good: "up" },
   { key: "cpl", label: "Cost per lead", good: "down" },
-  { key: "spend", label: "Spend", good: null },
-  { key: "impressions", label: "Seen by", good: "up" },
+  { key: "costPerDeal", label: "Cost per deal" },  // no delta: recent leads haven't had time to become deals
 ];
 
-const ACCOUNT_COLORS = ["--series-1", "--series-2"];  // fixed per account (order in data.accounts)
+export const ACCOUNT_COLORS = ["--acc-1", "--acc-2"];  // fixed per account (order in data.accounts)
 
-function setDelta(node, d, good, hasCmp) {
+function setDelta(node, d, good) {
   node.className = "kpi-delta";
-  if (!hasCmp) { node.textContent = "Today so far, nothing to compare yet"; return; }
-  if (d == null) { node.textContent = "No comparison available"; return; }
+  node.hidden = d == null;  // nothing to compare (first period, or today only): say nothing
+  if (d == null) return;
   const p = Math.round(d * 100);
-  if (p === 0) { node.textContent = "= Same as the period before"; return; }
+  if (p === 0) { node.textContent = "Same as the period before"; return; }
   node.textContent = `${p > 0 ? "▲" : "▼"} ${Math.abs(p)}% vs the period before`;
   if (good) node.classList.add((p > 0) === (good === "up") ? "good" : "bad");
 }
 
-function renderTiles(cur, cmp, f) {
+function renderTiles(cur, cmp, deals, f) {
   const box = $("tiles");
   if (box.dataset.ready !== "1") {
     box.replaceChildren(...TILES.map((t) => {
@@ -41,79 +40,72 @@ function renderTiles(cur, cmp, f) {
   }
   // values include today; the comparison uses complete days only (cmp)
   const pick = (t, key) => (key === "cpl" ? M.ratios(t).cpl : t[key]);
-  const fmts = { leads: f.num, cpl: f.money, spend: f.money, impressions: f.num };
+  const values = { spend: cur.spend, leads: cur.leads, cpl: pick(cur, "cpl"), costPerDeal: deals ? cur.spend / deals : null };
+  const fmts = { spend: f.moneyShort, leads: f.num, cpl: f.money, costPerDeal: f.moneyShort };
   for (const t of TILES) {
     const tile = box.querySelector(`[data-key="${t.key}"]`);
-    countUp(tile.querySelector(".kpi-value"), pick(cur, t.key), fmts[t.key]);
-    const d = cmp ? M.delta(pick(cmp.cur, t.key), pick(cmp.prev, t.key)) : null;
-    setDelta(tile.querySelector(".kpi-delta"), d, t.good, Boolean(cmp));
+    countUp(tile.querySelector(".kpi-value"), values[t.key], fmts[t.key]);
+    const delta = tile.querySelector(".kpi-delta");
+    if (t.key === "costPerDeal") {
+      delta.className = "kpi-delta";
+      delta.hidden = false;
+      delta.textContent = deals ? `${I.count(deals, "deal", f.num)} in Brevo` : "No deal yet";
+    } else {
+      setDelta(delta, cmp ? M.delta(pick(cmp.cur, t.key), pick(cmp.prev, t.key)) : null, t.good);
+    }
   }
 }
 
-const highlight = (title, main, sub) => {
-  const c = el("div", "highlight");
-  c.append(el("div", "hl-title", title), el("div", "hl-main", main), el("div", "hl-sub", sub));
-  return c;
-};
-
-function renderHighlights(rows, range, cmp, f, adsById) {
-  const best = I.byLeads(I.adList(rows)).find((a) => a.leads > 0);
-  const day = I.bestDay(M.byDate(rows, range));
-  const cards = [];
-  if (best) cards.push(highlight("🥇 Best ad", adsById.get(best.id)?.name || `Ad ${best.id}`,
-    `${I.count(best.leads, "lead", f.num)} · ${f.money(best.cpl)} per lead`));
-  if (day) cards.push(highlight("📅 Best day", f.longDay(day.date), I.count(day.leads, "lead", f.num)));
-  cards.push(highlight("📈 Trend", I.trend(cmp), "Complete days, compared with the period just before"));
-  $("highlights").replaceChildren(...cards);
+function renderWarning(t, f, onShowLeads) {
+  const missing = t.byStatus["Not in Brevo"];
+  const warn = $("lead-warning");
+  warn.hidden = !missing;
+  if (!missing) return;
+  const link = el("button", "link", "See which campaigns");
+  link.type = "button";
+  link.append(icon("arrowRight"));
+  link.onclick = onShowLeads;
+  warn.replaceChildren(icon("alert", "icon warning-icon"),
+    el("span", null, `${I.count(missing, "lead", f.num)} from this period ${missing === 1 ? "is" : "are"} `
+      + `not in Brevo yet, so nobody can follow ${missing === 1 ? "it" : "them"} up.`), link);
 }
 
-function renderPer1000(cur, f) {
-  const p = I.per1000(cur);
-  $("per1000-section").hidden = !p;
-  if (!p) return;
-  const steps = [["1,000", "people saw your ads"], [f.per1000(p.clicks), "clicked on an ad"],
-    [f.per1000(p.formOpens), "opened the form"], [f.per1000(p.leads), "sent it and became leads"]];
-  $("per1000").replaceChildren(...steps.map(([v, text]) => {
+function renderFunnel(cur, t, f) {
+  const help = { ...GLOSSARY };
+  if (t.total && t.total !== cur.leads) {  // explain the gap instead of showing two unexplained numbers
+    help.leads = `${GLOSSARY.leads} LinkedIn's ad reports count ${f.num(cur.leads)}; its lead-form export, `
+      + `used for the Brevo steps, has ${f.num(t.total)}. "In Brevo" is a share of those ${f.num(t.total)}.`;
+  }
+  $("funnel").replaceChildren(...L.fullFunnel(cur, t).map((s) => {
     const li = el("li");
-    li.append(el("div", "p-value", v), el("div", "p-text", text));
+    const label = el("div", "fn-label", s.label);
+    label.append(info(help[s.key]));
+    li.append(label, el("div", "fn-value", f.num(s.value)));
+    li.append(el("div", "fn-rate", s.rate == null ? "" : `${f.pct(s.rate)} of ${s.of}`));
     return li;
   }));
 }
 
-function renderLeadBlock(leadRows, f, onShowLeads) {
-  const t = L.statusTotals(leadRows);
-  const sentence = L.dealSentence(t, f);
-  $("deal-story").hidden = !sentence;
-  $("deal-story").textContent = sentence;
-  $("lead-block").hidden = !t.total;
-  if (!t.total) return;
-  renderLeadFunnel($("lead-funnel"), t, f, false);
-  const missing = t.byStatus["Not in Brevo"];
-  const warn = $("lead-warning");
-  warn.hidden = !missing;
-  if (missing) {
-    const link = el("button", "link", "See which campaigns →");
-    link.type = "button";
-    link.onclick = onShowLeads;
-    warn.replaceChildren(el("span", null, `⚠️ ${I.count(missing, "lead", f.num)} from this period ${missing === 1 ? "is" : "are"} `
-      + `not in Brevo yet, so nobody can follow ${missing === 1 ? "it" : "them"} up.`), link);
-  }
-}
-
-export function renderOverview({ rows, cmp, range, state, f, adsById, data, accounts, leadRows }, { onShowLeads }) {
+export function renderOverview({ rows, cmp, range, days, f, adsById, data, accounts, leadRows }, { onShowLeads }) {
   const cur = M.totals(rows);
-  $("story").textContent = I.story(state.range, cur, cmp, f);
-  renderLeadBlock(leadRows, f, onShowLeads);
-  renderTiles(cur, cmp, f);
-  renderHighlights(rows, range, cmp, f, adsById);
-  renderPer1000(cur, f);
-  const series = M.byDate(rows, range);
+  const t = L.statusTotals(leadRows);
+  renderTiles(cur, cmp, t.deals, f);
+  renderWarning(t, f, onShowLeads);
+  renderFunnel(cur, t, f);
+
+  const bucket = M.bucketFor(days);
+  const per = bucket === "week" ? "per week" : "per day";
+  $("cap-leads").textContent = `Leads ${per}`;
+  $("cap-cpl").textContent = `Cost per lead ${per} · dashed line: period average`;
+  $("cap-spend").textContent = `Spend ${per}, by account`;
+  const series = M.byBucket(rows, range, bucket);
   const labels = series.map((d) => f.day(d.date));
   drawChart("chart-leads", "bar", labels, series.map((d) => d.leads), f.num, f.compact);
-  drawChart("chart-cpl", "line", labels, series.map((d) => (d.leads ? d.spend / d.leads : null)), f.money, f.compact);
-  const split = M.byDateSplit(rows, range, (r) => adsById.get(r.adId)?.accountId, accounts.map((a) => a.id), "spend");
+  drawChart("chart-cpl", "line", labels, series.map((d) => (d.leads ? d.spend / d.leads : null)), f.money, f.moneyTick,
+    { average: M.ratios(cur).cpl });
+  const split = M.byBucketSplit(rows, range, bucket, (r) => adsById.get(r.adId)?.accountId, accounts.map((a) => a.id), "spend");
   drawStacked("chart-spend", labels, accounts.map((a) => ({
-    label: a.label, values: split.series.get(a.id),
+    label: a.name, values: split.series.get(a.id),
     colorVar: ACCOUNT_COLORS[data.accounts.findIndex((x) => x.id === a.id) % ACCOUNT_COLORS.length],
-  })), f.money, f.compact);
+  })), f.money, f.moneyTick);
 }

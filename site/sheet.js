@@ -43,7 +43,7 @@ const LABEL = { campaign: "Campaign", ad: "Ad" };
 export function sheetCsv({ rows, total }, level, { sep = ",", decimal = "." } = {}) {
   const n = (v) => (v == null || decimal === "." ? v : String(v).replace(".", decimal));
   const grouped = level !== "total";
-  const head = ["Date", ...(grouped ? [LABEL[level]] : []), "Seen by", "Clicks", "Click rate", "Form opens",
+  const head = ["Date", ...(grouped ? [LABEL[level]] : []), "Impressions", "Clicks", "Click rate", "Form opens",
     "Leads", "Spend", "Cost per lead"];
   const line = (r, date) => [date, ...(grouped ? [r.label] : []), r.impressions, r.clicks,
     n(r.ctr == null ? null : +r.ctr.toFixed(4)), r.leadFormOpens, r.leads, n(r.spend),

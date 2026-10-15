@@ -85,14 +85,35 @@ export function groupTotals(rows, key) {
   return new Map([...groups].map(([id, rs]) => [id, totals(rs)]));
 }
 
-// One daily series per key (e.g. per account) for stacked charts; days with nothing are 0.
-export function byDateSplit(rows, { start, end }, keyOf, keys, field) {
-  const days = [];
-  const index = new Map();
-  for (let d = start; d <= end; d = addDays(d, 1)) { index.set(d, days.length); days.push(d); }
+export const weekStart = (iso) => addDays(iso, -((toDate(iso).getUTCDay() + 6) % 7));  // the Monday
+
+// Charts go weekly past 60 days: daily bars over a year turn into a barcode full of gaps.
+export const bucketFor = (days) => (days < 60 ? "day" : "week");
+const bucketKey = (bucket) => (bucket === "week" ? weekStart : (iso) => iso);
+
+// Bucket start dates covering the range (weeks start on Monday, the first one may begin before `start`).
+export function buckets({ start, end }, bucket) {
+  const out = [];
+  const step = bucket === "week" ? 7 : 1;
+  for (let d = bucketKey(bucket)(start); d <= end; d = addDays(d, step)) out.push(d);
+  return out;
+}
+
+export function byBucket(rows, range, bucket) {
+  const key = bucketKey(bucket);
+  const groups = new Map(buckets(range, bucket).map((b) => [b, []]));
+  for (const r of rows) groups.get(key(r.date))?.push(r);
+  return [...groups].map(([date, rs]) => ({ date, ...totals(rs) }));
+}
+
+// One series per key (e.g. per account) for stacked charts; empty buckets are 0.
+export function byBucketSplit(rows, range, bucket, keyOf, keys, field) {
+  const key = bucketKey(bucket);
+  const days = buckets(range, bucket);
+  const index = new Map(days.map((d, i) => [d, i]));
   const series = new Map(keys.map((k) => [k, days.map(() => 0)]));
   for (const r of rows) {
-    const i = index.get(r.date), s = series.get(keyOf(r));
+    const i = index.get(key(r.date)), s = series.get(keyOf(r));
     if (i != null && s) s[i] += r[field] || 0;
   }
   for (const s of series.values()) s.forEach((v, i) => { s[i] = Math.round(v * 100) / 100; });

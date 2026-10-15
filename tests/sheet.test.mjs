@@ -51,7 +51,7 @@ test("toCsv escapes commas, quotes and newlines", () => {
 
 test("sheetCsv: French Excel format uses ; and decimal commas", () => {
   const fr = S.sheetCsv(S.sheetRows(rows, range, "ad", nameOf), "ad", { sep: ";", decimal: "," }).split("\n");
-  assert.equal(fr[0], "Date;Ad;Seen by;Clicks;Click rate;Form opens;Leads;Spend;Cost per lead");
+  assert.equal(fr[0], "Date;Ad;Impressions;Clicks;Click rate;Form opens;Leads;Spend;Cost per lead");
   assert.equal(fr[1], "Total;;160;16;0,1;0;3;29;9,67");
   assert.equal(fr[4], "2026-09-30;\"Ad, \"\"two\"\"\";50;5;0,1;0;0;5;");
   assert.equal(S.toCsv(["a"], [["x;y"]], ";"), "a\n\"x;y\"\n");
@@ -59,10 +59,10 @@ test("sheetCsv: French Excel format uses ; and decimal commas", () => {
 
 test("sheetCsv: totals first, raw numbers, label column only when grouped", () => {
   const total = S.sheetCsv(S.sheetRows(rows, range, "total", nameOf), "total").split("\n");
-  assert.equal(total[0], "Date,Seen by,Clicks,Click rate,Form opens,Leads,Spend,Cost per lead");
+  assert.equal(total[0], "Date,Impressions,Clicks,Click rate,Form opens,Leads,Spend,Cost per lead");
   assert.equal(total[1], "Total,160,16,0.1,0,3,29,9.67");
   assert.equal(total[4], "2026-09-29,0,0,,0,0,0,");
   const ad = S.sheetCsv(S.sheetRows(rows, range, "ad", nameOf), "ad").split("\n");
-  assert.equal(ad[0], "Date,Ad,Seen by,Clicks,Click rate,Form opens,Leads,Spend,Cost per lead");
+  assert.equal(ad[0], "Date,Ad,Impressions,Clicks,Click rate,Form opens,Leads,Spend,Cost per lead");
   assert.equal(ad[4], "2026-09-30,\"Ad, \"\"two\"\"\",50,5,0.1,0,0,5,");
 });

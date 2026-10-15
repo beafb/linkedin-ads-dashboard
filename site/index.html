@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LinkedIn Ads Dashboard</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232a78d6' stroke-width='2.5' stroke-linecap='round'><path d='M4 20V12M10 20V6M16 20v-9M22 20H2'/></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
@@ -41,49 +41,37 @@
     <p id="error" class="error" role="alert" hidden></p>
 
     <section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">
-      <p id="story" class="story"><span class="skeleton line"></span><span class="skeleton line short"></span></p>
-      <p id="deal-story" class="story-sub" hidden></p>
-      <div id="lead-block" class="lead-block" hidden>
-        <ol id="lead-funnel" class="lead-funnel"></ol>
-        <div id="lead-warning" class="warning" hidden></div>
-      </div>
       <div id="tiles" class="kpis">
         <div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div><div class="skeleton tile"></div>
       </div>
-      <div id="highlights" class="highlights"></div>
-      <section id="per1000-section" class="per1000-section" hidden>
-        <h2>Out of 1,000 people who saw your ads…</h2>
-        <ol id="per1000" class="per1000"></ol>
+      <div id="lead-warning" class="warning" role="status" hidden></div>
+      <section class="block">
+        <h2>From impression to deal</h2>
+        <ol id="funnel" class="funnel"></ol>
       </section>
       <div class="charts">
-        <figure class="card"><figcaption>Leads per day</figcaption><div class="plot"><canvas id="chart-leads" role="img" aria-label="Leads per day"></canvas></div></figure>
-        <figure class="card"><figcaption>Cost per lead, per day</figcaption><div class="plot"><canvas id="chart-cpl" role="img" aria-label="Cost per lead per day"></canvas></div></figure>
-        <figure class="card wide"><figcaption>Spend per day, by account</figcaption><div class="plot"><canvas id="chart-spend" role="img" aria-label="Spend per day, stacked by account"></canvas></div></figure>
+        <figure class="card"><figcaption id="cap-leads">Leads</figcaption><div class="plot"><canvas id="chart-leads" role="img" aria-label="Leads over time"></canvas></div></figure>
+        <figure class="card"><figcaption id="cap-cpl">Cost per lead</figcaption><div class="plot"><canvas id="chart-cpl" role="img" aria-label="Cost per lead over time, with the period average"></canvas></div></figure>
+        <figure class="card wide"><figcaption id="cap-spend">Spend, by account</figcaption><div class="plot"><canvas id="chart-spend" role="img" aria-label="Spend over time, stacked by account"></canvas></div></figure>
       </div>
     </section>
 
     <section id="panel-ads" role="tabpanel" aria-labelledby="tab-ads" hidden>
       <div class="panel-head">
         <h2>Your ads</h2>
-        <label class="field">Sort by
-          <select id="ad-sort">
-            <option value="leads">Most leads</option>
-            <option value="cheapest">Cheapest leads</option>
-            <option value="spend">Most spend</option>
-            <option value="newest">Newest</option>
-          </select>
-        </label>
+        <label class="switch"><input id="running-only" type="checkbox" checked> Running ads only</label>
       </div>
-      <div id="ads-grid" class="ads-grid"></div>
-      <p id="ads-empty" class="empty" hidden>No ads ran in this period.</p>
+      <div class="sheet-wrap"><table id="ads-table" class="datatable ads-table"><thead></thead><tbody></tbody></table></div>
+      <p id="ads-empty" class="empty" hidden></p>
     </section>
 
     <section id="panel-leads" role="tabpanel" aria-labelledby="tab-leads" hidden>
       <div class="panel-head"><h2>What happened to your leads</h2></div>
-      <ol id="leads-funnel" class="lead-funnel"></ol>
+      <ol id="leads-funnel" class="funnel"></ol>
       <p id="leads-empty" class="empty" hidden>No leads in this period.</p>
       <div class="charts">
-        <figure class="card wide"><figcaption>Leads per week, by status today</figcaption><div class="plot"><canvas id="chart-leadstatus" role="img" aria-label="Leads per week, stacked by status"></canvas></div></figure>
+        <figure class="card"><figcaption id="cap-followup">Leads, by follow-up today</figcaption><div class="plot"><canvas id="chart-followup" role="img" aria-label="Leads over time, stacked by follow-up status"></canvas></div></figure>
+        <figure class="card"><figcaption>Deals, by stage today</figcaption><div class="plot"><canvas id="chart-stages" role="img" aria-label="Number of deals per pipeline stage"></canvas></div></figure>
       </div>
       <div class="panel-head table-head">
         <h2>By campaign or ad</h2>
